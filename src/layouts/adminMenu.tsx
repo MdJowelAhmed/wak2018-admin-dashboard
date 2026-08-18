@@ -7,7 +7,6 @@ import {
   Building2,
   ClipboardList,
   FileText,
-  Headphones,
   LayoutDashboard,
   Layers,
   Lock,
