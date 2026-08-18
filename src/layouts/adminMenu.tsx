@@ -106,7 +106,7 @@ export const adminMenu: AdminMenuItem[] = [
   { key: "delivery", label: "Delivery", to: "/delivery", icon: Truck },
   { key: "payouts", label: "Payouts", to: "/payouts", icon: Wallet },
   { key: "hero", label: "Hero", to: "/hero", icon: LayoutDashboard },
-  { key: "support", label: "Support", to: "/support", icon: Headphones },
+  // { key: "support", label: "Support", to: "/support", icon: Headphones },
   { key: "analytics", label: "Analytics", to: "/analytics", icon: BarChart3 },
   {
     key: "settings",
