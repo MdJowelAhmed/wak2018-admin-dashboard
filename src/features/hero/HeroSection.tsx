@@ -18,6 +18,9 @@ import {
   useUpdateHeroSectionMutation,
   useDeleteHeroSectionMutation,
 } from "@/services/heroApi";
+import { useGetProductsQuery, type ProductItem } from "@/services/productsApi";
+import { useGetServicesQuery, type ServiceItem } from "@/services/servicesApi";
+import { MOCK_PRODUCTS_SEED } from "@/features/catalog/lib/mockProductsData";
 import type { HeroType } from "@/types/hero";
 
 export default function HeroSectionPage() {
@@ -27,6 +30,9 @@ export default function HeroSectionPage() {
   const [updateHero, { isLoading: isUpdating }] =
     useUpdateHeroSectionMutation();
   const [deleteHero] = useDeleteHeroSectionMutation();
+
+  const { data: productsData } = useGetProductsQuery();
+  const { data: servicesData } = useGetServicesQuery();
 
   const heroSections = response?.data || [];
 
@@ -42,6 +48,114 @@ export default function HeroSectionPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Extract products list
+  const apiProducts: ProductItem[] = useMemo(() => {
+    if (!productsData) return [];
+    if (Array.isArray(productsData)) return productsData;
+    if (Array.isArray(productsData.data)) return productsData.data;
+    if (productsData.data && Array.isArray((productsData.data as any).products)) {
+      return (productsData.data as any).products;
+    }
+    return [];
+  }, [productsData]);
+
+  const productList = useMemo(() => {
+    const list: ProductItem[] =
+      apiProducts.length > 0
+        ? [...apiProducts]
+        : MOCK_PRODUCTS_SEED.map((p) => ({
+            _id: p.id,
+            name: p.name,
+          }));
+
+    if (selectedHeroId) {
+      const hero = heroSections.find((h) => h._id === selectedHeroId);
+      if (
+        hero?.type === "product" &&
+        hero.product &&
+        typeof hero.product === "object" &&
+        hero.product._id
+      ) {
+        const exists = list.some(
+          (item) => (item._id || item.id) === hero.product._id,
+        );
+        if (!exists) {
+          list.unshift({
+            _id: hero.product._id,
+            name:
+              hero.product.name ||
+              hero.product.header ||
+              hero.product.title ||
+              `Product (${hero.product._id})`,
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [apiProducts, selectedHeroId, heroSections]);
+
+  // Extract services list
+  const apiServices: ServiceItem[] = useMemo(() => {
+    if (!servicesData) return [];
+    if (Array.isArray(servicesData)) return servicesData;
+    if (Array.isArray(servicesData.data)) return servicesData.data;
+    if (servicesData.data && Array.isArray((servicesData.data as any).services)) {
+      return (servicesData.data as any).services;
+    }
+    return [];
+  }, [servicesData]);
+
+  const mockServicesList: ServiceItem[] = useMemo(
+    () => [
+      { _id: "S-1001", name: "AC Repair & Maintenance" },
+      { _id: "S-1002", name: "Full Stack Web Development" },
+      { _id: "S-1003", name: "Home Deep Cleaning" },
+      { _id: "S-1004", name: "Plumbing & Pipe Fixing" },
+    ],
+    [],
+  );
+
+  const serviceList = useMemo(() => {
+    const list: ServiceItem[] =
+      apiServices.length > 0 ? [...apiServices] : [...mockServicesList];
+
+    if (selectedHeroId) {
+      const hero = heroSections.find((h) => h._id === selectedHeroId);
+      if (
+        hero?.type === "service" &&
+        hero.service &&
+        typeof hero.service === "object" &&
+        hero.service._id
+      ) {
+        const exists = list.some(
+          (item) => (item._id || item.id) === hero.service._id,
+        );
+        if (!exists) {
+          list.unshift({
+            _id: hero.service._id,
+            name:
+              hero.service.name ||
+              hero.service.title ||
+              hero.service.serviceName ||
+              `Service (${hero.service._id})`,
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [apiServices, mockServicesList, selectedHeroId, heroSections]);
+
+  const currentOptionExists = useMemo(() => {
+    if (!referenceId) return true;
+    if (heroType === "product") {
+      return productList.some((p) => (p._id || p.id) === referenceId);
+    } else {
+      return serviceList.some((s) => (s._id || s.id) === referenceId);
+    }
+  }, [referenceId, heroType, productList, serviceList]);
 
   useEffect(() => {
     if (selectedHeroId) {
@@ -269,14 +383,20 @@ export default function HeroSectionPage() {
                     <Button
                       type="button"
                       variant={heroType === "product" ? "default" : "outline"}
-                      onClick={() => setHeroType("product")}
+                      onClick={() => {
+                        setHeroType("product");
+                        setReferenceId("");
+                      }}
                     >
                       Product
                     </Button>
                     <Button
                       type="button"
                       variant={heroType === "service" ? "default" : "outline"}
-                      onClick={() => setHeroType("service")}
+                      onClick={() => {
+                        setHeroType("service");
+                        setReferenceId("");
+                      }}
                     >
                       Service
                     </Button>
@@ -284,13 +404,55 @@ export default function HeroSectionPage() {
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium capitalize">
-                    {heroType} ID
+                    Select {heroType}
                   </label>
-                  <Input
+                  <select
                     value={referenceId}
                     onChange={(e) => setReferenceId(e.target.value)}
-                    placeholder={`Paste ${heroType} ID here...`}
-                  />
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">-- Select a {heroType} --</option>
+                    {!currentOptionExists && referenceId && (
+                      <option value={referenceId}>
+                        Selected ID: {referenceId}
+                      </option>
+                    )}
+                    {heroType === "product"
+                      ? productList.map((prod) => {
+                          const pId = prod._id || prod.id || "";
+                          const pName =
+                            prod.name ||
+                            prod.title ||
+                            prod.header ||
+                            `Product (${pId})`;
+                          return (
+                            <option key={pId} value={pId}>
+                              {pName}
+                            </option>
+                          );
+                        })
+                      : serviceList.map((serv) => {
+                          const sId = serv._id || serv.id || "";
+                          const sName =
+                            serv.title ||
+                            serv.name ||
+                            serv.serviceName ||
+                            `Service (${sId})`;
+                          return (
+                            <option key={sId} value={sId}>
+                              {sName}
+                            </option>
+                          );
+                        })}
+                  </select>
+                  {referenceId && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Selected ID:{" "}
+                      <span className="font-mono font-medium text-foreground">
+                        {referenceId}
+                      </span>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium">
