@@ -70,6 +70,9 @@ const SettingsSecurityPage = lazy(
 const SettingsLegalPage = lazy(
   () => import("@/features/settings/pages/SettingsLegalPage"),
 );
+const SettingsCommissionPage = lazy(
+  () => import("@/features/settings/pages/SettingsCommissionPage"),
+);
 const ShopDeliveryPage = lazy(
   () => import("@/features/shop/pages/ShopDeliveryPage"),
 );
@@ -152,6 +155,7 @@ const router = createBrowserRouter([
       { path: "/settings/profile", element: <SettingsProfilePage /> },
       { path: "/settings/security", element: <SettingsSecurityPage /> },
       { path: "/settings/legal", element: <SettingsLegalPage /> },
+      { path: "/settings/commission", element: <SettingsCommissionPage /> },
       {
         path: "/settings/support",
         element: <Navigate to="/support" replace />,
