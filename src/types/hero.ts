@@ -9,6 +9,7 @@ export interface HeroSection {
   service?: any | null; // Service model can be further typed if needed
   link?: string | null;
   type: HeroType;
+  countryCode?: string;
   createdAt: string;
   updatedAt: string;
 }

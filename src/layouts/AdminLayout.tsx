@@ -248,7 +248,7 @@ export function AdminLayout() {
     const managementLinkOrder = [
       "categories",
       "service_providers",
-      "services",
+      // "services",
       "orders",
       "delivery",
       "payouts",

@@ -22,6 +22,7 @@ import { useGetProductsQuery, type ProductItem } from "@/services/productsApi";
 import { useGetServicesQuery, type ServiceItem } from "@/services/servicesApi";
 import { MOCK_PRODUCTS_SEED } from "@/features/catalog/lib/mockProductsData";
 import type { HeroType } from "@/types/hero";
+import { COUNTRY_OPTIONS, getCountryName } from "@/utils/countries";
 
 export default function HeroSectionPage() {
   const { data: response, isLoading } = useGetHeroSectionsQuery();
@@ -43,6 +44,7 @@ export default function HeroSectionPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [heroType, setHeroType] = useState<HeroType>("product");
+  const [countryCode, setCountryCode] = useState("");
   const [referenceId, setReferenceId] = useState(""); // product or service ID
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -164,6 +166,7 @@ export default function HeroSectionPage() {
         setTitle(hero.header || "");
         setDescription(hero.description || "");
         setHeroType(hero.type || "product");
+        setCountryCode(hero.countryCode || "");
         setImagePreview(
           hero.image
             ? `${(import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000").replace("/api/v1", "")}${hero.image}`
@@ -187,6 +190,7 @@ export default function HeroSectionPage() {
     setTitle("");
     setDescription("");
     setHeroType("product");
+    setCountryCode("");
     setReferenceId("");
     setImagePreview(null);
     setSelectedFile(null);
@@ -208,10 +212,16 @@ export default function HeroSectionPage() {
       return;
     }
 
+    if (!countryCode) {
+      alert("Please select a country");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("header", title);
     formData.append("description", description);
     formData.append("type", heroType);
+    formData.append("countryCode", countryCode);
 
     if (heroType === "product" && referenceId) {
       formData.append("product", referenceId);
@@ -283,6 +293,7 @@ export default function HeroSectionPage() {
                     <TableRow>
                       <TableHead>Image</TableHead>
                       <TableHead>Header</TableHead>
+                      <TableHead>Country</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -305,6 +316,11 @@ export default function HeroSectionPage() {
                         </TableCell>
                         <TableCell className="font-medium">
                           {hero.header}
+                        </TableCell>
+                        <TableCell>
+                          {hero.countryCode
+                            ? `${getCountryName(hero.countryCode)} (${hero.countryCode})`
+                            : "—"}
                         </TableCell>
                         <TableCell className="capitalize">
                           {hero.type}
@@ -374,6 +390,24 @@ export default function HeroSectionPage() {
                     className="w-full rounded-xl border p-3"
                     placeholder="Enter hero description..."
                   />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium" htmlFor="hero-country">
+                    Country
+                  </label>
+                  <select
+                    id="hero-country"
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">-- Select a country --</option>
+                    {COUNTRY_OPTIONS.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.name} ({country.code})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium">
