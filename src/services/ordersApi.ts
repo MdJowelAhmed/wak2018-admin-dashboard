@@ -1,7 +1,9 @@
 import { baseApi } from "./baseApi";
 import type {
   ProductOrdersResponse,
+  ProductUpdatableStatus,
   ServiceOrdersResponse,
+  ServiceUpdatableStatus,
   SingleProductOrderResponse,
   SingleServiceOrderResponse,
 } from "@/types/order";
@@ -68,6 +70,34 @@ export const ordersApi = baseApi.injectEndpoints({
       query: (id) => `/admin-dashboard/orders/services/${id}`,
       providesTags: (_result, _error, arg) => [{ type: "Orders", id: arg }],
     }),
+    updateProductOrderStatus: build.mutation<
+      unknown,
+      { id: string; orderStatus: ProductUpdatableStatus; reason?: string }
+    >({
+      query: ({ id, orderStatus, reason }) => ({
+        url: `/admin-dashboard/orders/products/${id}/status`,
+        method: "PATCH",
+        body: reason?.trim() ? { orderStatus, reason: reason.trim() } : { orderStatus },
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        "Orders",
+        { type: "Orders", id },
+      ],
+    }),
+    updateServiceOrderStatus: build.mutation<
+      unknown,
+      { id: string; orderStatus: ServiceUpdatableStatus; reason?: string }
+    >({
+      query: ({ id, orderStatus, reason }) => ({
+        url: `/admin-dashboard/orders/services/${id}/status`,
+        method: "PATCH",
+        body: reason?.trim() ? { orderStatus, reason: reason.trim() } : { orderStatus },
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        "Orders",
+        { type: "Orders", id },
+      ],
+    }),
   }),
   overrideExisting: false,
 });
@@ -77,4 +107,6 @@ export const {
   useGetServiceOrdersQuery,
   useGetProductOrderByIdQuery,
   useGetServiceOrderByIdQuery,
+  useUpdateProductOrderStatusMutation,
+  useUpdateServiceOrderStatusMutation,
 } = ordersApi;

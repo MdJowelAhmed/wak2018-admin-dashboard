@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Eye } from "lucide-react";
+import { Eye, RefreshCw } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,9 +32,44 @@ import {
   useGetServiceOrdersQuery,
   useGetProductOrderByIdQuery,
   useGetServiceOrderByIdQuery,
+  useUpdateProductOrderStatusMutation,
+  useUpdateServiceOrderStatusMutation,
 } from "@/services/ordersApi";
+import type {
+  ProductUpdatableStatus,
+  ServiceUpdatableStatus,
+} from "@/types/order";
 
 type OrderType = "product" | "service";
+
+const PRODUCT_STATUS_OPTIONS: { value: ProductUpdatableStatus; label: string }[] =
+  [
+    { value: "shipped", label: "Shipped" },
+    { value: "out_for_delivery", label: "Out for Delivery" },
+    { value: "delivered", label: "Delivered" },
+    { value: "ready_for_pickup", label: "Ready for Pickup" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
+
+const SERVICE_STATUS_OPTIONS: { value: ServiceUpdatableStatus; label: string }[] =
+  [
+    { value: "in_progress", label: "In Progress" },
+    { value: "delivered", label: "Delivered" },
+    { value: "completed", label: "Completed" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
+
+function formatStatusLabel(status: string) {
+  return status?.replace(/_/g, " ") || "Pending";
+}
+
+function getApiErrorMessage(err: unknown) {
+  if (typeof err === "object" && err && "data" in err) {
+    const message = (err as { data?: { message?: string } }).data?.message;
+    if (message) return message;
+  }
+  return "Failed to update order status.";
+}
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -60,13 +95,19 @@ function PaymentBadge({ status }: { status: string }) {
 }
 
 function DeliveryBadge({ status }: { status: string }) {
+  const label = formatStatusLabel(status);
   if (status === "delivered" || status === "completed")
-    return <Badge variant="success">Delivered/Completed</Badge>;
-  if (status === "in_progress" || status === "in_transit")
-    return <Badge variant="warning">In progress</Badge>;
-  return (
-    <Badge variant="secondary">{status?.replace("_", " ") || "Pending"}</Badge>
-  );
+    return <Badge variant="success">{label}</Badge>;
+  if (status === "cancelled") return <Badge variant="danger">{label}</Badge>;
+  if (
+    status === "in_progress" ||
+    status === "in_transit" ||
+    status === "shipped" ||
+    status === "out_for_delivery" ||
+    status === "ready_for_pickup"
+  )
+    return <Badge variant="warning">{label}</Badge>;
+  return <Badge variant="secondary">{label}</Badge>;
 }
 
 export default function OrdersPage() {
@@ -90,6 +131,14 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [statusTarget, setStatusTarget] = useState<{
+    id: string;
+    orderId: string;
+    currentStatus: string;
+  } | null>(null);
+  const [nextStatus, setNextStatus] = useState("");
+  const [statusReason, setStatusReason] = useState("");
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const [dismissedToastId, setDismissedToastId] = useState<string | null>(null);
   const [highlightId] = useState<string | null>(null);
@@ -123,6 +172,16 @@ export default function OrdersPage() {
       skip: !selectedOrderId || type !== "service",
     });
 
+  const [updateProductStatus, { isLoading: isUpdatingProductStatus }] =
+    useUpdateProductOrderStatusMutation();
+  const [updateServiceStatus, { isLoading: isUpdatingServiceStatus }] =
+    useUpdateServiceOrderStatusMutation();
+  const isUpdatingStatus =
+    isUpdatingProductStatus || isUpdatingServiceStatus;
+
+  const statusOptions =
+    type === "product" ? PRODUCT_STATUS_OPTIONS : SERVICE_STATUS_OPTIONS;
+
   const currentData =
     type === "product"
       ? productResponse?.data || []
@@ -140,6 +199,50 @@ export default function OrdersPage() {
       : singleServiceResponse?.data;
   const isLoadingDetails =
     type === "product" ? isFetchingProductDetails : isFetchingServiceDetails;
+
+  function openStatusDialog(order: { _id: string; orderId: string; orderStatus: string }) {
+    const options =
+      type === "product" ? PRODUCT_STATUS_OPTIONS : SERVICE_STATUS_OPTIONS;
+    const currentAllowed = options.find((opt) => opt.value === order.orderStatus);
+    setStatusTarget({
+      id: order._id,
+      orderId: order.orderId,
+      currentStatus: order.orderStatus,
+    });
+    setNextStatus(currentAllowed?.value ?? options[0].value);
+    setStatusReason("");
+    setStatusError(null);
+  }
+
+  function closeStatusDialog(force = false) {
+    if (isUpdatingStatus && !force) return;
+    setStatusTarget(null);
+    setStatusReason("");
+    setStatusError(null);
+  }
+
+  async function handleStatusUpdate() {
+    if (!statusTarget || !nextStatus) return;
+    setStatusError(null);
+    try {
+      if (type === "product") {
+        await updateProductStatus({
+          id: statusTarget.id,
+          orderStatus: nextStatus as ProductUpdatableStatus,
+          reason: statusReason || undefined,
+        }).unwrap();
+      } else {
+        await updateServiceStatus({
+          id: statusTarget.id,
+          orderStatus: nextStatus as ServiceUpdatableStatus,
+          reason: statusReason || undefined,
+        }).unwrap();
+      }
+      closeStatusDialog(true);
+    } catch (err) {
+      setStatusError(getApiErrorMessage(err));
+    }
+  }
 
   const totalPages = pagination?.totalPage || 1;
   const pageNumbers = useMemo(() => {
@@ -360,7 +463,7 @@ export default function OrdersPage() {
                       <TableHead>Payment</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead className="min-w-40 pr-6 text-right">
+                      <TableHead className="min-w-52 pr-6 text-right">
                         Actions
                       </TableHead>
                     </TableRow>
@@ -432,16 +535,27 @@ export default function OrdersPage() {
                           <TableCell className="text-muted-foreground">
                             {new Date(o.createdAt).toLocaleDateString()}
                           </TableCell>
-                          <TableCell className="min-w-40 pr-6 text-right">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-10 w-10 rounded-xl border border-[#89512925] bg-white hover:border-[#89512940] hover:bg-[#faf7f3]"
-                              onClick={() => setSelectedOrderId(o._id)}
-                              aria-label="View"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                          <TableCell className="min-w-52 pr-6 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-10 rounded-xl border border-[#89512925] bg-white hover:border-[#89512940] hover:bg-[#faf7f3]"
+                                onClick={() => openStatusDialog(o)}
+                              >
+                                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                                Update Status
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-10 rounded-xl border border-[#89512925] bg-white hover:border-[#89512940] hover:bg-[#faf7f3]"
+                                onClick={() => setSelectedOrderId(o._id)}
+                                aria-label="View"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -692,7 +806,7 @@ export default function OrdersPage() {
                       }
                       title={log.note}
                     >
-                      {log.status.replace("_", " ")} -{" "}
+                      {formatStatusLabel(log.status)} -{" "}
                       {new Date(log.timestamp).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -710,10 +824,98 @@ export default function OrdersPage() {
                   >
                     Close
                   </Button>
+                  <Button onClick={() => openStatusDialog(selectedOrder)}>
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                    Update Status
+                  </Button>
                 </div>
               </DialogFooter>
             </motion.div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!statusTarget}
+        onOpenChange={(open) => !open && closeStatusDialog()}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update order status</DialogTitle>
+            <DialogDescription>
+              {statusTarget
+                ? `Choose a new status for ${statusTarget.orderId}.`
+                : "Choose a new status for this order."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {statusTarget && (
+              <div className="flex items-center justify-between rounded-lg border border-[#EEE7DF] bg-[#faf7f3] px-3 py-2 text-sm">
+                <span className="text-muted-foreground">Current status</span>
+                <DeliveryBadge status={statusTarget.currentStatus} />
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="order-status">
+                New status
+              </label>
+              <select
+                id="order-status"
+                value={nextStatus}
+                onChange={(e) => setNextStatus(e.target.value)}
+                className="h-10 w-full rounded-lg border border-[#EEE7DF] bg-white px-3 text-sm"
+              >
+                {statusOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="order-reason">
+                Reason{" "}
+                <span className="font-normal text-muted-foreground">
+                  (optional)
+                </span>
+              </label>
+              <textarea
+                id="order-reason"
+                value={statusReason}
+                onChange={(e) => setStatusReason(e.target.value)}
+                placeholder={
+                  nextStatus === "cancelled"
+                    ? "Recommended when cancelling an order"
+                    : "Add a note for this status change"
+                }
+                rows={3}
+                className="w-full rounded-lg border border-[#EEE7DF] bg-white px-3 py-2 text-sm outline-none focus:border-[#89512960]"
+              />
+            </div>
+
+            {statusError && (
+              <p className="text-sm text-red-600">{statusError}</p>
+            )}
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              variant="outline"
+              onClick={() => closeStatusDialog()}
+              disabled={isUpdatingStatus}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleStatusUpdate}
+              disabled={isUpdatingStatus || !nextStatus}
+            >
+              {isUpdatingStatus ? "Updating..." : "Update status"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </PageShell>

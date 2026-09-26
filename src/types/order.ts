@@ -1,5 +1,25 @@
 export type PaymentStatus = "paid" | "unpaid" | "pending" | "failed" | "cancelled";
-export type OrderStatus = "pending" | "confirmed" | "in_progress" | "delivered" | "completed" | "cancelled";
+export type ProductUpdatableStatus =
+  | "shipped"
+  | "out_for_delivery"
+  | "delivered"
+  | "cancelled"
+  | "ready_for_pickup";
+export type ServiceUpdatableStatus =
+  | "in_progress"
+  | "delivered"
+  | "completed"
+  | "cancelled";
+export type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "in_progress"
+  | "shipped"
+  | "out_for_delivery"
+  | "ready_for_pickup"
+  | "delivered"
+  | "completed"
+  | "cancelled";
 export type DeliveryType = "international" | "local";
 
 export interface StatusLogEntry {
