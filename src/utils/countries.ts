@@ -35,7 +35,7 @@ export const COUNTRY_OPTIONS = COUNTRY_CODES.map((code) => ({
   name: resolveCountryName(code),
 })).sort((a, b) => a.name.localeCompare(b.name));
 
-const COUNTRY_NAME_BY_CODE = new Map(
+const COUNTRY_NAME_BY_CODE = new Map<string, string>(
   COUNTRY_OPTIONS.map((country) => [country.code, country.name]),
 );
 
