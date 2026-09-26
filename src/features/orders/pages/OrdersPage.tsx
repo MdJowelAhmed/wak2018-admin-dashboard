@@ -201,6 +201,7 @@ export default function OrdersPage() {
     type === "product" ? isFetchingProductDetails : isFetchingServiceDetails;
 
   function openStatusDialog(order: { _id: string; orderId: string; orderStatus: string }) {
+    if (order.orderStatus === "cancelled") return;
     const options =
       type === "product" ? PRODUCT_STATUS_OPTIONS : SERVICE_STATUS_OPTIONS;
     const currentAllowed = options.find((opt) => opt.value === order.orderStatus);
@@ -541,6 +542,12 @@ export default function OrdersPage() {
                                 variant="outline"
                                 size="sm"
                                 className="h-10 rounded-xl border border-[#89512925] bg-white hover:border-[#89512940] hover:bg-[#faf7f3]"
+                                disabled={o.orderStatus === "cancelled"}
+                                title={
+                                  o.orderStatus === "cancelled"
+                                    ? "Cancelled orders cannot be updated"
+                                    : undefined
+                                }
                                 onClick={() => openStatusDialog(o)}
                               >
                                 <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
@@ -549,7 +556,7 @@ export default function OrdersPage() {
                               <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-10 w-10 rounded-xl border border-[#89512925] bg-white hover:border-[#89512940] hover:bg-[#faf7f3]"
+                                className="h-10 w-10 px-4 rounded-xl border border-[#89512925] bg-white hover:border-[#89512940] hover:bg-[#faf7f3]"
                                 onClick={() => setSelectedOrderId(o._id)}
                                 aria-label="View"
                               >
@@ -824,7 +831,15 @@ export default function OrdersPage() {
                   >
                     Close
                   </Button>
-                  <Button onClick={() => openStatusDialog(selectedOrder)}>
+                  <Button
+                    disabled={selectedOrder.orderStatus === "cancelled"}
+                    title={
+                      selectedOrder.orderStatus === "cancelled"
+                        ? "Cancelled orders cannot be updated"
+                        : undefined
+                    }
+                    onClick={() => openStatusDialog(selectedOrder)}
+                  >
                     <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                     Update Status
                   </Button>
