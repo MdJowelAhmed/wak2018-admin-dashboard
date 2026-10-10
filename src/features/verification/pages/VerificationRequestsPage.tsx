@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Eye } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Badge } from "@/components/ui/badge";
@@ -66,9 +66,174 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant="warning">Pending</Badge>;
 }
 
-function isImageDocument(doc: VerificationDocument) {
-  const source = `${doc.key} ${doc.url}`.split("?")[0].toLowerCase();
-  return /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(source);
+function apiOrigin() {
+  const base = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api/v1";
+  try {
+    return new URL(base).origin;
+  } catch {
+    return base.replace(/\/api\/v1\/?$/, "");
+  }
+}
+
+function rewriteLocalhost(url: string, origin: string) {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "0.0.0.0"
+    ) {
+      return `${origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    return url;
+  }
+  return url;
+}
+
+function candidateDocumentUrls(doc: VerificationDocument) {
+  const origin = apiOrigin();
+  const raw = doc.url?.trim() || "";
+  const urls: string[] = [];
+  const push = (value: string) => {
+    if (value && !urls.includes(value)) urls.push(value);
+  };
+
+  let search = "";
+  if (raw.includes("?")) search = raw.slice(raw.indexOf("?"));
+
+  if (/^https?:\/\//i.test(raw)) {
+    push(rewriteLocalhost(raw, origin));
+    push(raw);
+  } else if (raw) {
+    const path = raw.startsWith("/") ? raw : `/${raw}`;
+    push(`${origin}${path}`);
+    if (!path.startsWith("/documents/") && !path.startsWith("/api/")) {
+      push(`${origin}/documents${path.split("?")[0]}${search}`);
+    }
+  }
+
+  if (doc.key) {
+    const key = doc.key.replace(/^\/+/, "");
+    push(`${origin}/documents/${key}${search}`);
+    push(`${origin}/api/v1/documents/${key}${search}`);
+  }
+
+  return urls;
+}
+
+function previewKind(blobType: string, doc: VerificationDocument) {
+  const hint = `${doc.key || ""} ${doc.url || ""}`.split("?")[0].toLowerCase();
+  if (blobType.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(hint)) {
+    return "image" as const;
+  }
+  if (blobType.includes("pdf") || hint.endsWith(".pdf")) return "pdf" as const;
+  return "other" as const;
+}
+
+function DocumentPreview({ doc }: { doc: VerificationDocument }) {
+  const urls = useMemo(() => candidateDocumentUrls(doc), [doc]);
+  const directUrl = urls[0] || "";
+  const directKind = previewKind("", doc);
+  const [blobSrc, setBlobSrc] = useState<string | null>(null);
+  const [blobKind, setBlobKind] = useState<"image" | "pdf" | "other" | null>(
+    null,
+  );
+  const [loadingBlob, setLoadingBlob] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setBlobSrc(null);
+    setBlobKind(null);
+    setFailed(false);
+    setLoadingBlob(false);
+  }, [directUrl]);
+
+  useEffect(() => {
+    if (!loadingBlob) return;
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    const token = localStorage.getItem("admin_token");
+
+    async function load() {
+      for (const url of urls) {
+        try {
+          const response = await fetch(url, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          });
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          const type = blob.type || "";
+          if (!blob.size || type.includes("json") || type.includes("html")) continue;
+          objectUrl = URL.createObjectURL(blob);
+          if (cancelled) {
+            URL.revokeObjectURL(objectUrl);
+            return;
+          }
+          setBlobKind(previewKind(type, doc));
+          setBlobSrc(objectUrl);
+          setFailed(false);
+          return;
+        } catch {
+          continue;
+        }
+      }
+      if (!cancelled) setFailed(true);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [doc, loadingBlob, urls]);
+
+  const src = blobSrc || directUrl;
+  const kind = blobKind || directKind;
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-[#EEE7DF]">
+      <div className="flex items-center justify-between gap-3 border-b border-[#EEE7DF] px-4 py-2">
+        <span className="text-sm font-medium uppercase">{formatLabel(doc.type)}</span>
+        {directUrl && (
+          <a
+            href={directUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-[#895129] underline"
+          >
+            Open
+          </a>
+        )}
+      </div>
+      <div className="flex h-72 w-full items-center justify-center overflow-hidden bg-[#faf7f3]">
+        {loadingBlob && !blobSrc && !failed && (
+          <span className="text-sm text-muted-foreground">
+            Loading document...
+          </span>
+        )}
+        {failed && (
+          <span className="px-4 text-center text-sm text-muted-foreground">
+            Document could not be loaded.
+          </span>
+        )}
+        {!failed && src && !(loadingBlob && !blobSrc) && kind === "image" && (
+          <img
+            src={src}
+            alt={formatLabel(doc.type)}
+            className="h-full w-full object-contain"
+            onError={() => {
+              if (!blobSrc) setLoadingBlob(true);
+              else setFailed(true);
+            }}
+          />
+        )}
+        {!failed && src && kind !== "image" && (
+          <iframe title={doc.type} src={src} className="h-full w-full" />
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function VerificationRequestsPage() {
@@ -369,37 +534,7 @@ export default function VerificationRequestsPage() {
                   </div>
                 ) : (
                   selected.documents?.map((doc) => (
-                    <div
-                      key={`${doc.key}-${doc.type}`}
-                      className="overflow-hidden rounded-lg border border-[#EEE7DF]"
-                    >
-                      <div className="flex items-center justify-between gap-3 border-b border-[#EEE7DF] px-4 py-2">
-                        <span className="text-sm font-medium uppercase">
-                          {formatLabel(doc.type)}
-                        </span>
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm text-[#895129] underline"
-                        >
-                          Open
-                        </a>
-                      </div>
-                      {isImageDocument(doc) ? (
-                        <img
-                          src={doc.url}
-                          alt={doc.type}
-                          className="max-h-80 w-full bg-[#faf7f3] object-contain"
-                        />
-                      ) : (
-                        <iframe
-                          title={doc.type}
-                          src={doc.url}
-                          className="h-80 w-full bg-[#faf7f3]"
-                        />
-                      )}
-                    </div>
+                    <DocumentPreview key={`${doc.key}-${doc.type}`} doc={doc} />
                   ))
                 )}
               </div>
