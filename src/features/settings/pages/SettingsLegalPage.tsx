@@ -1,6 +1,17 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Eye, Save, SendHorizonal } from "lucide-react";
+import {
+  FileText,
+  Shield,
+  Clock,
+  Copy,
+  Check,
+  Save,
+  Eye,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,23 +33,37 @@ import {
 } from "@/services/disclaimerApi";
 
 type DocKey = "terms" | "privacy";
-type PublishStatus = "published" | "draft";
 
-type LegalDoc = {
+interface DocConfig {
   key: DocKey;
   label: string;
-  status: PublishStatus;
-  version: string;
-  title: string;
-  content: string;
-  lastUpdated: string;
-  updatedBy: string;
-  visibility: "public" | "internal";
-  countries: string[];
-  language: string;
+  apiType: "terms-and-conditions" | "privacy-policy";
+  icon: typeof FileText;
+  description: string;
+}
+
+const DOC_CONFIGS: Record<DocKey, DocConfig> = {
+  terms: {
+    key: "terms",
+    label: "Terms & Conditions",
+    apiType: "terms-and-conditions",
+    icon: FileText,
+    description: "Platform usage rules, rights, and user agreements.",
+  },
+  privacy: {
+    key: "privacy",
+    label: "Privacy Policy",
+    apiType: "privacy-policy",
+    icon: Shield,
+    description: "Data collection, privacy standards, and compliance policy.",
+  },
 };
 
-type Toast = { id: string; message: string };
+type Toast = {
+  id: string;
+  message: string;
+  type: "success" | "error";
+};
 
 function ToastBar({
   toast,
@@ -53,162 +78,149 @@ function ToastBar({
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="rounded-xl border border-[#EEE7DF] bg-white p-3 shadow-soft"
+      className={cn(
+        "flex items-center justify-between rounded-xl border p-3.5 shadow-soft",
+        toast.type === "success"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+          : "border-rose-200 bg-rose-50 text-rose-900",
+      )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="text-sm font-medium text-foreground">
-          {toast.message}
-        </div>
-        <Button size="sm" variant="ghost" onClick={onClose}>
-          Close
-        </Button>
+      <div className="flex items-center gap-2.5">
+        {toast.type === "success" ? (
+          <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+        ) : (
+          <AlertCircle className="h-4.5 w-4.5 text-rose-600 shrink-0" />
+        )}
+        <div className="text-sm font-medium">{toast.message}</div>
       </div>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={onClose}
+        className="h-7 px-2 text-xs hover:bg-black/5"
+      >
+        Dismiss
+      </Button>
     </motion.div>
   );
 }
 
-function statusPill(status: PublishStatus) {
-  return status === "published"
-    ? { label: "Published", className: "bg-emerald-500/10 text-emerald-700" }
-    : { label: "Draft", className: "bg-amber-500/10 text-amber-800" };
-}
-
-function demoContent(kind: DocKey) {
-  if (kind === "privacy") {
-    return `# Privacy Policy
-
-## What we collect
-- Account details (name, email, phone)
-- Usage data (pages visited, actions)
-- Transaction data (orders, payouts)
-
-## How we use data
-We use your data to provide services, prevent fraud, and improve the platform.
-
-## Data retention
-We retain data as long as necessary for legal and operational purposes.
-`;
+function formatDateTime(dateStr?: string | null): string {
+  if (!dateStr) return "Not updated yet";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(d);
+  } catch {
+    return dateStr;
   }
-
-  return `# Terms & Conditions
-
-## Acceptance of Terms
-By using this platform, you agree to these Terms and our Privacy Policy.
-
-## Marketplace Rules
-- No prohibited items or services
-- Vendors must comply with local laws
-- Abuse and fraud may lead to account suspension
-
-## Payments & Refunds
-Payments are processed securely. Refund eligibility depends on order status and dispute outcomes.
-`;
 }
-
-const initialDocs: Record<DocKey, LegalDoc> = {
-  terms: {
-    key: "terms",
-    label: "Terms & Conditions",
-    status: "published",
-    version: "v2.3",
-    title: "Platform Terms & Conditions",
-    content: demoContent("terms"),
-    lastUpdated: "2026-04-18 11:20 AM",
-    updatedBy: "Admin User",
-    visibility: "public",
-    countries: ["US", "BD", "AE", "UK"],
-    language: "English (US)",
-  },
-  privacy: {
-    key: "privacy",
-    label: "Privacy Policy",
-    status: "published",
-    version: "v1.9",
-    title: "Privacy Policy — Data & Security",
-    content: demoContent("privacy"),
-    lastUpdated: "2026-04-21 09:05 PM",
-    updatedBy: "A. Rahman (Compliance)",
-    visibility: "public",
-    countries: ["US", "BD", "AE", "UK"],
-    language: "English (US)",
-  },
-};
 
 export default function SettingsLegalPage() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [tab, setTab] = useState<DocKey>("terms");
-  const [docs, setDocs] = useState<Record<DocKey, LegalDoc>>(initialDocs);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
-  const apiTypeForTab =
-    tab === "terms" ? "terms-and-conditions" : "privacy-policy";
-  const { data: disclaimerResponse, isLoading } =
-    useGetDisclaimerQuery(apiTypeForTab);
+  const {
+    data: termsResponse,
+    isLoading: isTermsLoading,
+    isFetching: isTermsFetching,
+  } = useGetDisclaimerQuery("terms-and-conditions");
+
+  const {
+    data: privacyResponse,
+    isLoading: isPrivacyLoading,
+    isFetching: isPrivacyFetching,
+  } = useGetDisclaimerQuery("privacy-policy");
+
   const [updateDisclaimer, { isLoading: isUpdating }] =
     useUpdateDisclaimerMutation();
 
-  useEffect(() => {
-    if (disclaimerResponse?.success && disclaimerResponse.data) {
-      const actualData = disclaimerResponse.data;
+  const [drafts, setDrafts] = useState<
+    Record<DocKey, { content?: string; version?: string }>
+  >({
+    terms: {},
+    privacy: {},
+  });
 
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDocs((prev) => ({
-        ...prev,
-        [tab]: {
-          ...prev[tab],
-          content: actualData.content || "",
-          version: actualData.version || prev[tab].version,
-        },
-      }));
-    }
-  }, [disclaimerResponse, tab]);
-
-  const current = docs[tab];
-
-  const summary = useMemo(() => {
-    return (["terms", "privacy"] as const).map((k) => docs[k]);
-  }, [docs]);
-
-  function showToast(message: string) {
+  function showToast(message: string, type: "success" | "error" = "success") {
     const id = String(Date.now());
-    setToast({ id, message });
-    window.setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2200);
+    setToast({ id, message, type });
+    window.setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2800);
   }
 
-  function patchCurrent(patch: Partial<LegalDoc>) {
-    setDocs((prev) => ({ ...prev, [tab]: { ...prev[tab], ...patch } }));
+  const currentConfig = DOC_CONFIGS[tab];
+  const currentApiData =
+    tab === "terms" ? termsResponse?.data : privacyResponse?.data;
+  const isCurrentLoading =
+    tab === "terms"
+      ? isTermsLoading || isTermsFetching
+      : isPrivacyLoading || isPrivacyFetching;
+
+  const currentVersion = drafts[tab].version ?? currentApiData?.version ?? "";
+  const currentContent = drafts[tab].content ?? currentApiData?.content ?? "";
+
+  function handleFieldChange(field: "content" | "version", value: string) {
+    setDrafts((prev) => ({
+      ...prev,
+      [tab]: {
+        ...prev[tab],
+        [field]: value,
+      },
+    }));
   }
 
-  async function saveChanges() {
+  async function handleSave() {
     try {
-      await updateDisclaimer({
+      const res = await updateDisclaimer({
         body: {
-          type: apiTypeForTab,
-          content: current.content,
-          version: current.version,
+          type: currentConfig.apiType,
+          content: currentContent,
+          version: currentVersion,
         },
       }).unwrap();
 
-      const now = new Date();
-      const stamp = now.toLocaleString(undefined, {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      patchCurrent({ lastUpdated: stamp, updatedBy: "Admin User" });
-      showToast("Changes saved");
+      setDrafts((prev) => ({
+        ...prev,
+        [tab]: {},
+      }));
+
+      showToast(
+        res.message || `${currentConfig.label} saved successfully`,
+        "success",
+      );
     } catch {
-      showToast("Failed to save changes");
+      showToast("Failed to save changes. Please try again.", "error");
     }
   }
 
-  async function publish() {
-    patchCurrent({ status: "published", visibility: "public" });
-    await saveChanges();
-    showToast("Document published");
+  function handleCopyId(id?: string) {
+    if (!id) return;
+    navigator.clipboard.writeText(id);
+    setCopiedId(true);
+    window.setTimeout(() => setCopiedId(false), 2000);
   }
+
+  const docSummaries = [
+    {
+      key: "terms" as const,
+      config: DOC_CONFIGS.terms,
+      data: termsResponse?.data,
+    },
+    {
+      key: "privacy" as const,
+      config: DOC_CONFIGS.privacy,
+      data: privacyResponse?.data,
+    },
+  ];
 
   return (
     <PageShell
@@ -227,44 +239,70 @@ export default function SettingsLegalPage() {
           transition={{ duration: 0.28 }}
           className="grid grid-cols-1 gap-4 md:grid-cols-2"
         >
-          {summary.map((d, idx) => {
-            const pill = statusPill(d.status);
+          {docSummaries.map((item, idx) => {
+            const isSelected = tab === item.key;
+            const Icon = item.config.icon;
+
             return (
               <motion.button
-                key={d.key}
+                key={item.key}
                 type="button"
-                onClick={() => setTab(d.key)}
-                whileHover={{ y: -4, scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                className="text-left"
+                onClick={() => setTab(item.key)}
+                whileHover={{ y: -3, scale: 1.005 }}
+                whileTap={{ scale: 0.985 }}
+                transition={{ type: "spring", stiffness: 280, damping: 22 }}
+                className="text-left w-full focus:outline-none"
               >
                 <Card
                   className={cn(
-                    "rounded-2xl border border-[#EEE7DF] bg-white shadow-sm transition-shadow hover:shadow-lg",
-                    tab === d.key &&
-                      "border-primary/20 shadow-[0_12px_32px_rgba(137,81,41,0.12)]",
+                    "rounded-2xl border bg-white shadow-soft transition-all duration-200",
+                    isSelected
+                      ? "border-primary/40 ring-2 ring-primary/20 shadow-md bg-primary/[0.015]"
+                      : "border-[#EEE7DF] hover:border-[#EEE7DF]/80 hover:shadow-md",
                   )}
                 >
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-muted-foreground">
-                      {d.label}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between gap-3">
-                      <Badge
-                        className={cn("rounded-full", pill.className)}
-                        variant="secondary"
-                      >
-                        {pill.label}
-                      </Badge>
-                      <div className="text-xs text-muted-foreground">
-                        Updated {d.lastUpdated}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+                            isSelected
+                              ? "bg-primary text-white"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <CardTitle className="text-sm font-semibold text-foreground">
+                          {item.config.label}
+                        </CardTitle>
                       </div>
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-[11px] font-normal text-muted-foreground bg-[#FAF8F5]"
+                      >
+                        {item.config.apiType}
+                      </Badge>
                     </div>
-                    <div className="mt-3 text-sm font-semibold text-foreground">
-                      {d.version}
+                  </CardHeader>
+                  <CardContent className="pt-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs font-medium text-foreground">
+                        {item.data?.version ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-[#FAF8F5] px-2 py-0.5 border border-[#EEE7DF]">
+                            Version: {item.data.version}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Version: Not set
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>Updated {formatDateTime(item.data?.updatedAt)}</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -278,6 +316,7 @@ export default function SettingsLegalPage() {
           })}
         </motion.div>
 
+        {/* Main layout */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           {/* Main editor area */}
           <motion.div
@@ -285,64 +324,45 @@ export default function SettingsLegalPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
           >
-            <Card className="overflow-hidden rounded-2xl">
+            <Card className="overflow-hidden rounded-2xl border border-[#EEE7DF] bg-white shadow-soft">
               <CardContent className="p-0">
                 <div className="border-b border-[#EEE7DF] bg-white p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-foreground">
-                        Legal Management
+                        {currentConfig.label} Management
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Edit and publish legal documents with versioning and
-                        previews.
+                        {currentConfig.description}
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <motion.div
-                        whileHover={isUpdating ? {} : { scale: 1.03 }}
-                        whileTap={isUpdating ? {} : { scale: 0.97 }}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => setPreviewOpen(true)}
                       >
-                        <Button
-                          variant="outline"
-                          className="gap-2"
-                          onClick={saveChanges}
-                          disabled={isUpdating}
-                        >
+                        <Eye className="h-4 w-4" />
+                        Preview
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="gap-2"
+                        onClick={handleSave}
+                        disabled={isUpdating || isCurrentLoading}
+                      >
+                        {isUpdating ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
                           <Save className="h-4 w-4" />
-                          {isUpdating ? "Saving..." : "Save Changes"}
-                        </Button>
-                      </motion.div>
-                      <motion.div
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                      >
-                        <Button
-                          variant="outline"
-                          className="gap-2"
-                          onClick={() => setPreviewOpen(true)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          Preview
-                        </Button>
-                      </motion.div>
-                      <motion.div
-                        whileHover={isUpdating ? {} : { scale: 1.03 }}
-                        whileTap={isUpdating ? {} : { scale: 0.97 }}
-                      >
-                        <Button
-                          className="gap-2"
-                          onClick={publish}
-                          disabled={isUpdating}
-                        >
-                          <SendHorizonal className="h-4 w-4" />
-                          Publish
-                        </Button>
-                      </motion.div>
+                        )}
+                        {isUpdating ? "Saving..." : "Save Changes"}
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="mt-3">
+                  <div className="mt-4">
                     <Tabs
                       value={tab}
                       onValueChange={(v) => setTab(v as DocKey)}
@@ -360,84 +380,68 @@ export default function SettingsLegalPage() {
                         <AnimatePresence mode="wait">
                           <motion.div
                             key={tab}
-                            initial={{ opacity: 0, y: 10 }}
+                            initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.22 }}
+                            transition={{ duration: 0.2 }}
                             className="space-y-4"
                           >
-                            <div className="rounded-xl border border-[#EEE7DF] bg-white p-4">
-                              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                <div className="space-y-1">
-                                  <div className="text-xs font-medium text-muted-foreground">
-                                    Title
-                                  </div>
-                                  <Input
-                                    value={current.title}
-                                    onChange={(e) =>
-                                      patchCurrent({ title: e.target.value })
-                                    }
-                                    placeholder="Document title…"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <div className="text-xs font-medium text-muted-foreground">
-                                    Version
-                                  </div>
-                                  <Input
-                                    value={current.version}
-                                    onChange={(e) =>
-                                      patchCurrent({ version: e.target.value })
-                                    }
-                                    placeholder="v1.0"
-                                  />
-                                </div>
+                            <div className="space-y-4 rounded-xl border border-[#EEE7DF] bg-[#FAF8F5]/40 p-4">
+                              {/* Version field */}
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-foreground">
+                                  Version
+                                </label>
+                                <Input
+                                  value={currentVersion}
+                                  onChange={(e) =>
+                                    handleFieldChange("version", e.target.value)
+                                  }
+                                  placeholder="e.g. 1.0.0"
+                                  disabled={isCurrentLoading}
+                                  className="max-w-xs bg-white"
+                                />
                               </div>
 
-                              <div className="mt-3 space-y-1">
-                                <div className="text-xs font-medium text-muted-foreground">
-                                  Content
-                                  {isLoading && (
-                                    <span className="ml-2 text-primary">
-                                      Loading...
+                              {/* Content field */}
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-semibold text-foreground">
+                                    Content
+                                  </label>
+                                  {isCurrentLoading && (
+                                    <span className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      Loading content...
                                     </span>
                                   )}
                                 </div>
                                 <textarea
-                                  value={current.content}
+                                  value={currentContent}
                                   onChange={(e) =>
-                                    patchCurrent({ content: e.target.value })
+                                    handleFieldChange("content", e.target.value)
                                   }
-                                  disabled={isLoading}
-                                  className="min-h-80 w-full resize-none rounded-xl border border-[#EEE7DF] bg-white p-3 text-sm leading-relaxed focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:opacity-50"
+                                  disabled={isCurrentLoading}
+                                  rows={14}
+                                  placeholder="Enter document content here..."
+                                  className="w-full resize-y rounded-xl border border-[#EEE7DF] bg-white p-3.5 font-sans text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:opacity-50"
                                 />
                               </div>
 
-                              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                                <div className="text-xs text-muted-foreground">
-                                  Last updated{" "}
-                                  <span className="font-medium text-foreground">
-                                    {current.lastUpdated}
-                                  </span>{" "}
-                                  by{" "}
-                                  <span className="font-medium text-foreground">
-                                    {current.updatedBy}
+                              {/* Editor footer */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#EEE7DF]/60 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1.5">
+                                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span>
+                                    Last updated:{" "}
+                                    <span className="font-medium text-foreground">
+                                      {formatDateTime(currentApiData?.updatedAt)}
+                                    </span>
                                   </span>
                                 </div>
-                                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <input
-                                    type="checkbox"
-                                    checked={current.status === "published"}
-                                    onChange={(e) =>
-                                      patchCurrent({
-                                        status: e.target.checked
-                                          ? "published"
-                                          : "draft",
-                                      })
-                                    }
-                                  />
-                                  Publish toggle
-                                </label>
+                                <div>
+                                  {currentContent.length} characters
+                                </div>
                               </div>
                             </div>
                           </motion.div>
@@ -455,60 +459,72 @@ export default function SettingsLegalPage() {
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.24 }}
-            className="hidden lg:block"
+            className="hidden lg:block space-y-4"
           >
-            <Card className="rounded-2xl">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">
-                  Document info
+            <Card className="rounded-2xl border border-[#EEE7DF] bg-white shadow-soft">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Document Info
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="rounded-xl border border-[#EEE7DF] bg-white p-3 shadow-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs text-muted-foreground">
-                        Publish status
-                      </div>
-                      <div className="mt-0.5 text-sm font-semibold text-foreground">
-                        {statusPill(current.status).label}
-                      </div>
-                    </div>
-                    <Badge
-                      className={cn(
-                        "rounded-full",
-                        statusPill(current.status).className,
-                      )}
-                      variant="secondary"
-                    >
-                      {statusPill(current.status).label}
-                    </Badge>
+                {/* Document ID */}
+                <div className="rounded-xl bg-[#FAF8F5] p-3 border border-[#EEE7DF]">
+                  <div className="text-[11px] font-medium text-muted-foreground">
+                    Document ID
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-medium text-foreground break-all">
+                      {currentApiData?._id || "Not assigned"}
+                    </span>
+                    {currentApiData?._id && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopyId(currentApiData._id)}
+                        className="h-6 w-6 p-0 hover:bg-black/5 shrink-0"
+                        title="Copy ID"
+                      >
+                        {copiedId ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
-                {[
-                  { label: "Version", value: current.version },
-                  { label: "Updated by", value: current.updatedBy },
-                  { label: "Visibility", value: current.visibility },
-                  {
-                    label: "Supported countries",
-                    value: current.countries.join(", "),
-                  },
-                  { label: "Language", value: current.language },
-                ].map((row) => (
-                  <div key={row.label} className="rounded-xl bg-black/2 p-3">
-                    <div className="text-xs text-muted-foreground">
-                      {row.label}
-                    </div>
-                    <div className="mt-0.5 text-sm font-medium text-foreground">
-                      {row.value}
-                    </div>
+                {/* Type */}
+                <div className="rounded-xl bg-[#FAF8F5] p-3 border border-[#EEE7DF]">
+                  <div className="text-[11px] font-medium text-muted-foreground">
+                    Type
                   </div>
-                ))}
+                  <div className="mt-1 font-mono text-xs font-semibold text-foreground">
+                    {currentApiData?.type || currentConfig.apiType}
+                  </div>
+                </div>
 
-                <div className="text-xs text-muted-foreground">
-                  Tip: keep versions consistent (e.g., v2.3) and update
-                  timestamps on publish.
+                {/* Version */}
+                <div className="rounded-xl bg-[#FAF8F5] p-3 border border-[#EEE7DF]">
+                  <div className="text-[11px] font-medium text-muted-foreground">
+                    Version
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-foreground">
+                    {currentApiData?.version || currentVersion || "Not specified"}
+                  </div>
+                </div>
+
+                {/* Last Updated */}
+                <div className="rounded-xl bg-[#FAF8F5] p-3 border border-[#EEE7DF]">
+                  <div className="text-[11px] font-medium text-muted-foreground">
+                    Last Updated
+                  </div>
+                  <div className="mt-1 text-xs font-medium text-foreground">
+                    {formatDateTime(currentApiData?.updatedAt)}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -517,27 +533,32 @@ export default function SettingsLegalPage() {
 
         {/* Preview dialog */}
         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Preview</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <currentConfig.icon className="h-5 w-5 text-primary" />
+                Preview: {currentConfig.label}
+              </DialogTitle>
               <DialogDescription>
-                This is a simplified preview (demo). Hook into a Markdown
-                renderer later if needed.
+                Version: {currentVersion || "N/A"} • Last Updated:{" "}
+                {formatDateTime(currentApiData?.updatedAt)}
               </DialogDescription>
             </DialogHeader>
-            <div className="max-h-[60vh] overflow-auto rounded-xl border border-[#EEE7DF] bg-white p-4">
-              <div className="text-sm font-semibold text-foreground">
-                {current.title}
-              </div>
-              <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                {current.content}
-              </div>
+            <div className="max-h-[60vh] overflow-y-auto rounded-xl border border-[#EEE7DF] bg-[#FAF8F5] p-4">
+              {currentContent ? (
+                <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground font-sans">
+                  {currentContent}
+                </div>
+              ) : (
+                <div className="text-sm italic text-muted-foreground text-center py-6">
+                  No content written yet.
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setPreviewOpen(false)}>
                 Close
               </Button>
-              <Button onClick={publish}>Publish</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

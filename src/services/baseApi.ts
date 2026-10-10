@@ -30,6 +30,7 @@ export const baseApi = createApi({
     "ServiceProviders",
     "Categories",
     "Commission",
+    "VerificationRequests",
   ],
   endpoints: () => ({}),
 });

@@ -38,6 +38,9 @@ const ServicesPage = lazy(
   () => import("@/features/catalog/pages/ServicesPage"),
 );
 const OrdersPage = lazy(() => import("@/features/orders/pages/OrdersPage"));
+const VerificationRequestsPage = lazy(
+  () => import("@/features/verification/pages/VerificationRequestsPage"),
+);
 const DeliveryPage = lazy(
   () => import("@/features/delivery/pages/DeliveryPage"),
 );
@@ -146,6 +149,7 @@ const router = createBrowserRouter([
       { path: "/shop/payouts", element: <ShopPayoutsPage /> },
       { path: "/services", element: <ServicesPage /> },
       { path: "/orders", element: <OrdersPage /> },
+      { path: "/verifications", element: <VerificationRequestsPage /> },
       { path: "/delivery", element: <DeliveryPage /> },
       { path: "/payouts", element: <PayoutsPage /> },
       { path: "/hero", element: <HeroSection /> },

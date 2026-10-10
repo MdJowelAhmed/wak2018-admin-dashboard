@@ -84,6 +84,10 @@ function adminBreadcrumbItems(
     return [{ label: "Dashboard", to: "/" }, { label: "Service Providers" }];
   }
 
+  if (pathname === "/verifications") {
+    return [{ label: "Dashboard", to: "/" }, { label: "Verifications" }];
+  }
+
   if (pathname === "/admin/categories") {
     return [
       { label: "Dashboard", to: "/" },
@@ -248,6 +252,7 @@ export function AdminLayout() {
     const managementLinkOrder = [
       "categories",
       "service_providers",
+      "verifications",
       // "services",
       "orders",
       "delivery",
