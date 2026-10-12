@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Layers,
   Lock,
+  Mail,
   Percent,
   // Package,
   Settings,
@@ -113,6 +114,7 @@ export const adminMenu: AdminMenuItem[] = [
   { key: "delivery", label: "Delivery", to: "/delivery", icon: Truck },
   { key: "payouts", label: "Payouts", to: "/payouts", icon: Wallet },
   { key: "hero", label: "Hero", to: "/hero", icon: LayoutDashboard },
+  { key: "newsletters", label: "Newsletters", to: "/newsletters", icon: Mail },
   // { key: "support", label: "Support", to: "/support", icon: Headphones },
   { key: "analytics", label: "Analytics", to: "/analytics", icon: BarChart3 },
   {

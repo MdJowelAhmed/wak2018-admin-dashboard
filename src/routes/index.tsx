@@ -85,6 +85,9 @@ const ShopAnalyticsPage = lazy(
 const ShopPayoutsPage = lazy(
   () => import("@/features/shop/pages/ShopPayoutsPage"),
 );
+const NewsletterPage = lazy(
+  () => import("@/features/newsletter/pages/NewsletterPage"),
+);
 const NotFoundPage = lazy(() => import("@/routes/NotFoundPage"));
 
 import { CustomSpinner } from "@/components/common/CustomSpinner";
@@ -153,6 +156,8 @@ const router = createBrowserRouter([
       { path: "/delivery", element: <DeliveryPage /> },
       { path: "/payouts", element: <PayoutsPage /> },
       { path: "/hero", element: <HeroSection /> },
+      { path: "/newsletters", element: <NewsletterPage /> },
+      { path: "/admin/newsletters", element: <Navigate to="/newsletters" replace /> },
       { path: "/support", element: <SupportPage /> },
       { path: "/analytics", element: <AnalyticsPage /> },
       { path: "/settings", element: <SettingsPage /> },

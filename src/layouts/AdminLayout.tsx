@@ -258,6 +258,7 @@ export function AdminLayout() {
       "delivery",
       "payouts",
       "hero",
+      "newsletters",
       "support",
     ] as const;
     const sysKeys = new Set(["analytics"]);
