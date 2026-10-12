@@ -13,7 +13,7 @@ import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/utils/utils";
 import "./RichTextEditor.css";
 
@@ -24,6 +24,7 @@ import {
   Underline as UnderlineIcon,
   Strikethrough,
   Code,
+  Code2,
   List,
   ListOrdered,
   Quote,
@@ -44,6 +45,12 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
+export type SnippetItem = {
+  label: string;
+  icon?: React.ReactNode;
+  content: string;
+};
+
 export type RichTextEditorProps = {
   value?: string;
   onChange?: (html: string) => void;
@@ -54,6 +61,10 @@ export type RichTextEditorProps = {
   className?: string;
   /** Show character count bar at the bottom */
   showWordCount?: boolean;
+  /** Allow switching between TipTap visual WYSIWYG and raw HTML source */
+  allowSourceToggle?: boolean;
+  /** Quick insert snippet templates */
+  snippets?: SnippetItem[];
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,7 +102,17 @@ function ToolbarBtn({
 // ─────────────────────────────────────────────────────────────────────────────
 // Toolbar
 // ─────────────────────────────────────────────────────────────────────────────
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({
+  editor,
+  isCodeMode,
+  onToggleCodeMode,
+  allowSourceToggle,
+}: {
+  editor: Editor;
+  isCodeMode: boolean;
+  onToggleCodeMode: () => void;
+  allowSourceToggle: boolean;
+}) {
   const setLink = useCallback(() => {
     const prev = editor.getAttributes("link").href as string | undefined;
     const url = window.prompt("Enter URL:", prev ?? "https://");
@@ -122,14 +143,14 @@ function Toolbar({ editor }: { editor: Editor }) {
       <div className="rte-toolbar-group">
         <ToolbarBtn
           onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
+          disabled={isCodeMode || !editor.can().undo()}
           title="Undo (Ctrl+Z)"
         >
           <Undo />
         </ToolbarBtn>
         <ToolbarBtn
           onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
+          disabled={isCodeMode || !editor.can().redo()}
           title="Redo (Ctrl+Y)"
         >
           <Redo />
@@ -142,6 +163,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       <div className="rte-toolbar-group">
         <select
           title="Paragraph / Heading"
+          disabled={isCodeMode}
           className="rte-select"
           value={
             editor.isActive("heading", { level: 1 })
@@ -183,6 +205,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       <div className="rte-toolbar-group">
         <ToolbarBtn
           active={editor.isActive("bold")}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().toggleBold().run()}
           title="Bold (Ctrl+B)"
         >
@@ -190,6 +213,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         <ToolbarBtn
           active={editor.isActive("italic")}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           title="Italic (Ctrl+I)"
         >
@@ -197,6 +221,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         <ToolbarBtn
           active={editor.isActive("underline")}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           title="Underline (Ctrl+U)"
         >
@@ -204,6 +229,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         <ToolbarBtn
           active={editor.isActive("strike")}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().toggleStrike().run()}
           title="Strikethrough"
         >
@@ -211,6 +237,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         <ToolbarBtn
           active={editor.isActive("code")}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().toggleCode().run()}
           title="Inline Code"
         >
@@ -224,6 +251,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       <div className="rte-toolbar-group" title="Text Color">
         <input
           type="color"
+          disabled={isCodeMode}
           className="rte-color-input"
           title="Text Color"
           value={editor.getAttributes("textStyle").color ?? "#000000"}
@@ -237,6 +265,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         />
         <ToolbarBtn
           active={editor.isActive("highlight")}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().toggleHighlight().run()}
           title="Highlight"
         >
@@ -250,6 +279,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       <div className="rte-toolbar-group">
         <ToolbarBtn
           active={editor.isActive({ textAlign: "left" })}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().setTextAlign("left").run()}
           title="Align Left"
         >
@@ -257,6 +287,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         <ToolbarBtn
           active={editor.isActive({ textAlign: "center" })}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().setTextAlign("center").run()}
           title="Align Center"
         >
@@ -264,6 +295,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         <ToolbarBtn
           active={editor.isActive({ textAlign: "right" })}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().setTextAlign("right").run()}
           title="Align Right"
         >
@@ -271,6 +303,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         <ToolbarBtn
           active={editor.isActive({ textAlign: "justify" })}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().setTextAlign("justify").run()}
           title="Justify"
         >
@@ -284,6 +317,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       <div className="rte-toolbar-group">
         <ToolbarBtn
           active={editor.isActive("bulletList")}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           title="Bullet List"
         >
@@ -291,6 +325,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         <ToolbarBtn
           active={editor.isActive("orderedList")}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           title="Ordered List"
         >
@@ -298,6 +333,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         <ToolbarBtn
           active={editor.isActive("blockquote")}
+          disabled={isCodeMode}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           title="Blockquote"
         >
@@ -311,6 +347,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       <div className="rte-toolbar-group">
         <ToolbarBtn
           active={editor.isActive("link")}
+          disabled={isCodeMode}
           onClick={setLink}
           title="Insert / Edit Link"
         >
@@ -318,27 +355,51 @@ function Toolbar({ editor }: { editor: Editor }) {
         </ToolbarBtn>
         {editor.isActive("link") && (
           <ToolbarBtn
+            disabled={isCodeMode}
             onClick={() => editor.chain().focus().unsetLink().run()}
             title="Remove Link"
           >
             <Unlink />
           </ToolbarBtn>
         )}
-        <ToolbarBtn onClick={addImage} title="Insert Image URL">
+        <ToolbarBtn
+          disabled={isCodeMode}
+          onClick={addImage}
+          title="Insert Image URL"
+        >
           <ImageIcon />
         </ToolbarBtn>
-        <ToolbarBtn onClick={addTable} title="Insert Table (3×3)">
+        <ToolbarBtn
+          disabled={isCodeMode}
+          onClick={addTable}
+          title="Insert Table (3×3)"
+        >
           <TableIcon />
         </ToolbarBtn>
         <ToolbarBtn
-          onClick={() =>
-            editor.chain().focus().setHorizontalRule().run()
-          }
+          disabled={isCodeMode}
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
           title="Horizontal Divider"
         >
           <Minus />
         </ToolbarBtn>
       </div>
+
+      {/* HTML / Visual Toggle */}
+      {allowSourceToggle && (
+        <>
+          <div className="rte-toolbar-divider" />
+          <div className="rte-toolbar-group ml-auto">
+            <ToolbarBtn
+              active={isCodeMode}
+              onClick={onToggleCodeMode}
+              title={isCodeMode ? "Switch to Visual WYSIWYG Editor" : "View / Edit HTML Source Code"}
+            >
+              <Code2 className="h-4 w-4" />
+            </ToolbarBtn>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -355,7 +416,11 @@ export function RichTextEditor({
   maxHeight,
   className,
   showWordCount = true,
+  allowSourceToggle = true,
+  snippets,
 }: RichTextEditorProps) {
+  const [isCodeMode, setIsCodeMode] = useState(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -385,10 +450,10 @@ export function RichTextEditor({
     },
   });
 
-  // Sync external value changes (e.g., when API data loads)
+  // Sync external value changes safely without resetting cursor when user is focused
   useEffect(() => {
     if (!editor) return;
-    // Only update if the content is different to avoid cursor jump
+    if (editor.isFocused) return;
     if (editor.getHTML() !== value) {
       editor.commands.setContent(value ?? "");
     }
@@ -400,37 +465,119 @@ export function RichTextEditor({
     editor.setEditable(!disabled);
   }, [editor, disabled]);
 
-  const charCount = editor?.storage.characterCount.characters() ?? 0;
-  const wordCount = editor?.storage.characterCount.words() ?? 0;
+  const toggleCodeMode = () => {
+    if (!isCodeMode && editor) {
+      // Switching to code mode: sync latest HTML from editor
+      const latestHtml = editor.getHTML();
+      onChange?.(latestHtml);
+      setIsCodeMode(true);
+    } else if (isCodeMode && editor) {
+      // Switching back to visual mode: reload HTML into TipTap
+      editor.commands.setContent(value ?? "");
+      setIsCodeMode(false);
+    }
+  };
+
+  const handleInsertSnippet = (snippetContent: string) => {
+    if (isCodeMode) {
+      const next = value ? `${value}\n${snippetContent}` : snippetContent;
+      onChange?.(next);
+    } else if (editor) {
+      editor.chain().focus().insertContent(snippetContent).run();
+    }
+  };
+
+  const charCount = editor?.storage.characterCount.characters() ?? (value?.length ?? 0);
+  const wordCount = editor?.storage.characterCount.words() ?? (value ? value.trim().split(/\s+/).length : 0);
 
   return (
     <div
       className={cn(
-        "rte-wrapper overflow-hidden rounded-xl border border-[#EEE7DF] bg-white transition-shadow",
+        "rte-wrapper overflow-hidden rounded-xl border border-[#EEE7DF] bg-white transition-shadow shadow-xs",
         disabled && "opacity-60 pointer-events-none",
         className,
       )}
     >
       {/* Toolbar */}
-      {editor && <Toolbar editor={editor} />}
+      {editor && (
+        <Toolbar
+          editor={editor}
+          isCodeMode={isCodeMode}
+          onToggleCodeMode={toggleCodeMode}
+          allowSourceToggle={allowSourceToggle}
+        />
+      )}
 
-      {/* Content */}
-      <div
-        className="rte-content"
-        style={{
-          minHeight,
-          maxHeight: maxHeight ?? undefined,
-          overflowY: maxHeight ? "auto" : undefined,
-        }}
-      >
-        <EditorContent editor={editor} />
-      </div>
+      {/* Snippet / Quick Blocks Ribbon */}
+      {snippets && snippets.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-[#EEE7DF] bg-[#faf8f5] px-3 py-2 text-xs">
+          <span className="mr-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            Quick Insert:
+          </span>
+          {snippets.map((snip, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleInsertSnippet(snip.content)}
+              disabled={disabled}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3dcd3] bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-2xs transition-all hover:border-[#895129]/40 hover:bg-[#895129]/5 hover:text-[#895129] active:scale-95"
+            >
+              {snip.icon}
+              <span>{snip.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Footer: word / char count */}
+      {/* Content Area */}
+      {isCodeMode ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange?.(e.target.value)}
+          disabled={disabled}
+          placeholder="<p>Enter HTML code here...</p>"
+          className="rte-code-textarea"
+          style={{
+            minHeight,
+            maxHeight: maxHeight ?? undefined,
+          }}
+        />
+      ) : (
+        <div
+          className="rte-content"
+          style={{
+            minHeight,
+            maxHeight: maxHeight ?? undefined,
+            overflowY: maxHeight ? "auto" : undefined,
+          }}
+        >
+          <EditorContent editor={editor} />
+        </div>
+      )}
+
+      {/* Footer: word / char count + mode indicator */}
       {showWordCount && (
         <div className="flex items-center justify-between border-t border-[#EEE7DF] bg-[#faf8f5] px-4 py-2 text-[11px] text-muted-foreground">
-          <span>{wordCount} word{wordCount !== 1 ? "s" : ""}</span>
-          <span>{charCount.toLocaleString()} character{charCount !== 1 ? "s" : ""}</span>
+          <div className="flex items-center gap-3">
+            <span>
+              {wordCount} word{wordCount !== 1 ? "s" : ""}
+            </span>
+            <span>
+              {charCount.toLocaleString()} character{charCount !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold",
+                isCodeMode
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-emerald-100 text-emerald-800",
+              )}
+            >
+              {isCodeMode ? "HTML Source Mode" : "TipTap WYSIWYG Mode"}
+            </span>
+          </div>
         </div>
       )}
     </div>

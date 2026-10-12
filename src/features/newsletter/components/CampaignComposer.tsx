@@ -7,6 +7,11 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  AlignLeft,
+  Heading,
+  Link2,
+  Sparkles,
+  Code,
 } from "lucide-react";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { Input } from "@/components/ui/input";
@@ -28,6 +33,34 @@ interface CampaignComposerProps {
   activeSubscribersCount?: number;
   onCampaignBroadcasted?: () => void;
 }
+
+const EMAIL_SNIPPETS = [
+  {
+    label: "Paragraph",
+    icon: <AlignLeft className="h-3.5 w-3.5" />,
+    content: "<p>Your paragraph text here.</p>",
+  },
+  {
+    label: "Heading",
+    icon: <Heading className="h-3.5 w-3.5" />,
+    content: "<h2>Special Highlight Title</h2>",
+  },
+  {
+    label: "Button CTA",
+    icon: <Link2 className="h-3.5 w-3.5" />,
+    content: `<p style="text-align: center; margin: 24px 0;"><a href="https://worthworld.com/products" style="background-color: #895129; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Shop Now</a></p>`,
+  },
+  {
+    label: "Coupon Box",
+    icon: <Sparkles className="h-3.5 w-3.5" />,
+    content: `<div style="background-color: #fef3c7; border: 1px dashed #f59e0b; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; color: #92400e; margin: 16px 0;">USE COUPON: SAVE40</div>`,
+  },
+  {
+    label: "Divider",
+    icon: <Code className="h-3.5 w-3.5" />,
+    content: `<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />`,
+  },
+];
 
 export function CampaignComposer({
   activeSubscribersCount = 0,
@@ -233,20 +266,23 @@ export function CampaignComposer({
                 </p>
               </div>
 
-                {/* TipTap Editor */}
+              {/* TipTap Rich Text & HTML Editor */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Email Content <span className="text-rose-500">*</span>
+                    Email HTML Content <span className="text-rose-500">*</span>
                   </label>
+                  <span className="text-[11px] text-muted-foreground">Supports Visual & HTML tags</span>
                 </div>
                 <RichTextEditor
                   value={content}
                   onChange={setContent}
                   placeholder="Dear valued customer, ..."
                   minHeight={260}
-                  maxHeight={480}
+                  maxHeight={500}
                   showWordCount={true}
+                  allowSourceToggle={true}
+                  snippets={EMAIL_SNIPPETS}
                 />
               </div>
 

@@ -306,3 +306,22 @@
   border-color: #895129 !important;
   box-shadow: 0 0 0 3px rgba(137,81,41,0.12);
 }
+
+/* Code Mode Textarea */
+.rte-code-textarea {
+  width: 100%;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1e1814;
+  background-color: #faf8f5;
+  border: none;
+  outline: none;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  display: block;
+}
+
+.rte-code-textarea:focus {
+  outline: none;
+}
