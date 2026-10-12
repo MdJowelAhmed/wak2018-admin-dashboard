@@ -6,13 +6,9 @@ import {
   Zap,
   AlertCircle,
   CheckCircle2,
-  Code,
-  Sparkles,
-  Link2,
-  Heading,
-  AlignLeft,
   Loader2,
 } from "lucide-react";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,10 +51,6 @@ export function CampaignComposer({
 
   const [sendTestEmail, { isLoading: isSendingTest }] = useSendTestEmailMutation();
   const [broadcastCampaign, { isLoading: isBroadcasting }] = useBroadcastCampaignMutation();
-
-  const handleInsertSnippet = (snippet: string) => {
-    setContent((prev) => `${prev}\n${snippet}`);
-  };
 
   const handleSendTestEmail = async () => {
     if (!testEmail || !testEmail.includes("@")) {
@@ -241,82 +233,20 @@ export function CampaignComposer({
                 </p>
               </div>
 
-              {/* Content Editor */}
+                {/* TipTap Editor */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Email HTML Content <span className="text-rose-500">*</span>
+                    Email Content <span className="text-rose-500">*</span>
                   </label>
-                  <span className="text-[11px] text-muted-foreground">Supports HTML tags</span>
                 </div>
-
-                {/* Quick HTML Snippets Toolbar */}
-                <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-input bg-[#faf7f3] p-1.5 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleInsertSnippet("<p>Your paragraph text here.</p>")}
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-white hover:shadow-xs"
-                    title="Insert Paragraph"
-                  >
-                    <AlignLeft className="h-3 w-3" />
-                    <span>Paragraph</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleInsertSnippet("<h2>Special Highlight Title</h2>")}
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-white hover:shadow-xs"
-                    title="Insert Heading"
-                  >
-                    <Heading className="h-3 w-3" />
-                    <span>Heading</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleInsertSnippet(
-                        `<p style="text-align: center; margin: 20px 0;"><a href="https://worthworld.com/products" style="background-color: #895129; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Button Link</a></p>`,
-                      )
-                    }
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-white hover:shadow-xs"
-                    title="Insert Button Link"
-                  >
-                    <Link2 className="h-3 w-3" />
-                    <span>Button CTA</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleInsertSnippet(
-                        `<div style="background-color: #fef3c7; border: 1px dashed #f59e0b; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; color: #92400e;">USE COUPON: SAVE40</div>`,
-                      )
-                    }
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-white hover:shadow-xs"
-                    title="Insert Coupon Badge"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    <span>Coupon Box</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleInsertSnippet(
-                        `<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />`,
-                      )
-                    }
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-white hover:shadow-xs"
-                    title="Insert Divider"
-                  >
-                    <Code className="h-3 w-3" />
-                    <span>Divider</span>
-                  </button>
-                </div>
-
-                <textarea
-                  rows={9}
+                <RichTextEditor
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="<p>Dear customer, ...</p>"
-                  className="w-full rounded-xl border border-input bg-transparent px-3 py-2 font-mono text-xs leading-relaxed shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  onChange={setContent}
+                  placeholder="Dear valued customer, ..."
+                  minHeight={260}
+                  maxHeight={480}
+                  showWordCount={true}
                 />
               </div>
 

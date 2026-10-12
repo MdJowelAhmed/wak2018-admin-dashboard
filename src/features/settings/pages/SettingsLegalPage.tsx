@@ -31,6 +31,7 @@ import {
   useGetDisclaimerQuery,
   useUpdateDisclaimerMutation,
 } from "@/services/disclaimerApi";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
 
 type DocKey = "terms" | "privacy";
 
@@ -416,32 +417,28 @@ export default function SettingsLegalPage() {
                                     </span>
                                   )}
                                 </div>
-                                <textarea
+                                <RichTextEditor
                                   value={currentContent}
-                                  onChange={(e) =>
-                                    handleFieldChange("content", e.target.value)
+                                  onChange={(html) =>
+                                    handleFieldChange("content", html)
                                   }
                                   disabled={isCurrentLoading}
-                                  rows={14}
                                   placeholder="Enter document content here..."
-                                  className="w-full resize-y rounded-xl border border-[#EEE7DF] bg-white p-3.5 font-sans text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:opacity-50"
+                                  minHeight={340}
+                                  maxHeight={520}
+                                  showWordCount={true}
                                 />
                               </div>
 
-                              {/* Editor footer */}
-                              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#EEE7DF]/60 text-xs text-muted-foreground">
-                                <div className="flex items-center gap-1.5">
-                                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span>
-                                    Last updated:{" "}
-                                    <span className="font-medium text-foreground">
-                                      {formatDateTime(currentApiData?.updatedAt)}
-                                    </span>
+                              {/* Editor footer: last updated */}
+                              <div className="flex flex-wrap items-center gap-1.5 pt-3 text-xs text-muted-foreground">
+                                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span>
+                                  Last updated:{" "}
+                                  <span className="font-medium text-foreground">
+                                    {formatDateTime(currentApiData?.updatedAt)}
                                   </span>
-                                </div>
-                                <div>
-                                  {currentContent.length} characters
-                                </div>
+                                </span>
                               </div>
                             </div>
                           </motion.div>
