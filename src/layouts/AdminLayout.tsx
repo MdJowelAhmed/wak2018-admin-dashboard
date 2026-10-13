@@ -1041,22 +1041,7 @@ export function AdminLayout() {
         <header className="sticky top-0 z-30 border-b border-[#EEE7DF] bg-white/80 backdrop-blur">
           <div className="flex h-16 items-center justify-between px-3 sm:px-4 lg:px-6">
             <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="icon"
-                className="md:hidden"
-                onClick={() => setMobileOpen(true)}
-                aria-label="Open sidebar"
-              >
-                <PanelLeftOpen className="h-5 w-5" />
-              </Button>
-              <div className="hidden h-10 md:flex items-center gap-2 rounded-xl border border-[#EEE7DF] bg-white px-3 text-sm text-muted-foreground w-90">
-                <Search className="h-4 w-4" />
-                <Input
-                  className="h-auto border-0 p-0 shadow-none focus-visible:ring-0"
-                  placeholder="Search users, orders, vendors…"
-                />
-              </div>
+              
               <nav
                 aria-label="Breadcrumb"
                 className="flex min-h-10 flex-wrap items-center gap-1 text-sm text-muted-foreground"
