@@ -14,11 +14,9 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  Search,
 } from "lucide-react";
 import { adminMenu } from "@/layouts/adminMenu";
 import { cn, getImageUrl } from "@/utils/utils";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
