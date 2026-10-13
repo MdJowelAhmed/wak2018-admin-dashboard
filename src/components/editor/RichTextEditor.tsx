@@ -13,7 +13,7 @@ import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/utils/utils";
 import "./RichTextEditor.css";
 
@@ -404,6 +404,22 @@ function Toolbar({
   );
 }
 
+function isContentEqual(editor: Editor, incoming: string | undefined): boolean {
+  const isIncomingEmpty = !incoming || incoming.trim() === "" || incoming.trim() === "<p></p>";
+  if (isIncomingEmpty) {
+    return editor.isEmpty;
+  }
+  const currentHtml = editor.getHTML();
+  if (currentHtml === incoming) {
+    return true;
+  }
+  // If incoming string has no HTML tags, compare text content to avoid <p> tag mismatch
+  if (!incoming.includes("<") && !incoming.includes(">")) {
+    return editor.getText().trim() === incoming.trim();
+  }
+  return false;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main RichTextEditor component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -420,9 +436,10 @@ export function RichTextEditor({
   snippets,
 }: RichTextEditorProps) {
   const [isCodeMode, setIsCodeMode] = useState(false);
+  const isProgrammaticUpdateRef = useRef(false);
 
-  const editor = useEditor({
-    extensions: [
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({
         codeBlock: false,
       }),
@@ -443,37 +460,74 @@ export function RichTextEditor({
       TableCell,
       TableHeader,
     ],
+    [placeholder],
+  );
+
+  const editor = useEditor({
+    extensions,
     content: value,
     editable: !disabled,
     onUpdate({ editor }) {
-      onChange?.(editor.getHTML());
+      if (isProgrammaticUpdateRef.current) return;
+      if (!editor || editor.isDestroyed || (editor as any).destroyed || !editor.schema) {
+        return;
+      }
+      try {
+        onChange?.(editor.getHTML());
+      } catch {
+        // Safe guard against unmount race conditions
+      }
     },
   });
 
   // Sync external value changes safely without resetting cursor when user is focused
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed || (editor as any).destroyed || !editor.schema) {
+      return;
+    }
     if (editor.isFocused) return;
-    if (editor.getHTML() !== value) {
-      editor.commands.setContent(value ?? "");
+    try {
+      if (isContentEqual(editor, value)) {
+        return;
+      }
+      isProgrammaticUpdateRef.current = true;
+      editor.commands.setContent(value ?? "", { emitUpdate: false });
+      isProgrammaticUpdateRef.current = false;
+    } catch {
+      isProgrammaticUpdateRef.current = false;
     }
   }, [editor, value]);
 
   // Sync disabled prop
   useEffect(() => {
-    if (!editor) return;
-    editor.setEditable(!disabled);
+    if (!editor || editor.isDestroyed || (editor as any).destroyed) return;
+    try {
+      editor.setEditable(!disabled);
+    } catch {
+      // Safe guard
+    }
   }, [editor, disabled]);
 
   const toggleCodeMode = () => {
-    if (!isCodeMode && editor) {
+    if (!isCodeMode && editor && !editor.isDestroyed && editor.schema) {
       // Switching to code mode: sync latest HTML from editor
-      const latestHtml = editor.getHTML();
+      let latestHtml = value;
+      try {
+        latestHtml = editor.getHTML();
+      } catch {
+        latestHtml = value;
+      }
       onChange?.(latestHtml);
       setIsCodeMode(true);
-    } else if (isCodeMode && editor) {
+    } else if (isCodeMode && editor && !editor.isDestroyed) {
       // Switching back to visual mode: reload HTML into TipTap
-      editor.commands.setContent(value ?? "");
+      try {
+        isProgrammaticUpdateRef.current = true;
+        editor.commands.setContent(value ?? "", { emitUpdate: false });
+        isProgrammaticUpdateRef.current = false;
+      } catch {
+        isProgrammaticUpdateRef.current = false;
+      }
       setIsCodeMode(false);
     }
   };
@@ -482,13 +536,25 @@ export function RichTextEditor({
     if (isCodeMode) {
       const next = value ? `${value}\n${snippetContent}` : snippetContent;
       onChange?.(next);
-    } else if (editor) {
-      editor.chain().focus().insertContent(snippetContent).run();
+    } else if (editor && !editor.isDestroyed) {
+      try {
+        editor.chain().focus().insertContent(snippetContent).run();
+      } catch {
+        // Safe guard
+      }
     }
   };
 
-  const charCount = editor?.storage.characterCount.characters() ?? (value?.length ?? 0);
-  const wordCount = editor?.storage.characterCount.words() ?? (value ? value.trim().split(/\s+/).length : 0);
+  const charCount =
+    editor && !editor.isDestroyed && editor.storage?.characterCount
+      ? editor.storage.characterCount.characters()
+      : (value?.length ?? 0);
+  const wordCount =
+    editor && !editor.isDestroyed && editor.storage?.characterCount
+      ? editor.storage.characterCount.words()
+      : value
+        ? value.trim().split(/\s+/).length
+        : 0;
 
   return (
     <div
@@ -499,7 +565,7 @@ export function RichTextEditor({
       )}
     >
       {/* Toolbar */}
-      {editor && (
+      {editor && !editor.isDestroyed && (
         <Toolbar
           editor={editor}
           isCodeMode={isCodeMode}

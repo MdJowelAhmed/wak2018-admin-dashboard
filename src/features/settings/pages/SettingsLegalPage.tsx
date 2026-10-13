@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   FileText,
@@ -13,7 +13,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -145,19 +144,6 @@ export default function SettingsLegalPage() {
   const [updateDisclaimer, { isLoading: isUpdating }] =
     useUpdateDisclaimerMutation();
 
-  const [drafts, setDrafts] = useState<
-    Record<DocKey, { content?: string; version?: string }>
-  >({
-    terms: {},
-    privacy: {},
-  });
-
-  function showToast(message: string, type: "success" | "error" = "success") {
-    const id = String(Date.now());
-    setToast({ id, message, type });
-    window.setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2800);
-  }
-
   const currentConfig = DOC_CONFIGS[tab];
   const currentApiData =
     tab === "terms" ? termsResponse?.data : privacyResponse?.data;
@@ -166,17 +152,24 @@ export default function SettingsLegalPage() {
       ? isTermsLoading || isTermsFetching
       : isPrivacyLoading || isPrivacyFetching;
 
-  const currentVersion = drafts[tab].version ?? currentApiData?.version ?? "";
-  const currentContent = drafts[tab].content ?? currentApiData?.content ?? "";
+  const [version, setVersion] = useState("");
+  const [content, setContent] = useState("");
 
-  function handleFieldChange(field: "content" | "version", value: string) {
-    setDrafts((prev) => ({
-      ...prev,
-      [tab]: {
-        ...prev[tab],
-        [field]: value,
-      },
-    }));
+  // Sync version and content state whenever the tab changes or API data loads
+  useEffect(() => {
+    if (currentApiData) {
+      setVersion(currentApiData.version ?? "");
+      setContent(currentApiData.content ?? "");
+    } else {
+      setVersion("");
+      setContent("");
+    }
+  }, [currentApiData, tab]);
+
+  function showToast(message: string, type: "success" | "error" = "success") {
+    const id = String(Date.now());
+    setToast({ id, message, type });
+    window.setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2800);
   }
 
   async function handleSave() {
@@ -184,15 +177,10 @@ export default function SettingsLegalPage() {
       const res = await updateDisclaimer({
         body: {
           type: currentConfig.apiType,
-          content: currentContent,
-          version: currentVersion,
+          content,
+          version,
         },
       }).unwrap();
-
-      setDrafts((prev) => ({
-        ...prev,
-        [tab]: {},
-      }));
 
       showToast(
         res.message || `${currentConfig.label} saved successfully`,
@@ -210,19 +198,6 @@ export default function SettingsLegalPage() {
     window.setTimeout(() => setCopiedId(false), 2000);
   }
 
-  const docSummaries = [
-    {
-      key: "terms" as const,
-      config: DOC_CONFIGS.terms,
-      data: termsResponse?.data,
-    },
-    {
-      key: "privacy" as const,
-      config: DOC_CONFIGS.privacy,
-      data: privacyResponse?.data,
-    },
-  ];
-
   return (
     <PageShell
       title="Legal Settings"
@@ -232,90 +207,6 @@ export default function SettingsLegalPage() {
         <AnimatePresence>
           <ToastBar toast={toast} onClose={() => setToast(null)} />
         </AnimatePresence>
-
-        {/* Top summary cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.28 }}
-          className="grid grid-cols-1 gap-4 md:grid-cols-2"
-        >
-          {docSummaries.map((item, idx) => {
-            const isSelected = tab === item.key;
-            const Icon = item.config.icon;
-
-            return (
-              <motion.button
-                key={item.key}
-                type="button"
-                onClick={() => setTab(item.key)}
-                whileHover={{ y: -3, scale: 1.005 }}
-                whileTap={{ scale: 0.985 }}
-                transition={{ type: "spring", stiffness: 280, damping: 22 }}
-                className="text-left w-full focus:outline-none"
-              >
-                <Card
-                  className={cn(
-                    "rounded-2xl border bg-white shadow-soft transition-all duration-200",
-                    isSelected
-                      ? "border-primary/40 ring-2 ring-primary/20 shadow-md bg-primary/[0.015]"
-                      : "border-[#EEE7DF] hover:border-[#EEE7DF]/80 hover:shadow-md",
-                  )}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={cn(
-                            "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                            isSelected
-                              ? "bg-primary text-white"
-                              : "bg-muted text-muted-foreground",
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <CardTitle className="text-sm font-semibold text-foreground">
-                          {item.config.label}
-                        </CardTitle>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className="font-mono text-[11px] font-normal text-muted-foreground bg-[#FAF8F5]"
-                      >
-                        {item.config.apiType}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-xs font-medium text-foreground">
-                        {item.data?.version ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-[#FAF8F5] px-2 py-0.5 border border-[#EEE7DF]">
-                            Version: {item.data.version}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            Version: Not set
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span>Updated {formatDateTime(item.data?.updatedAt)}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2, delay: idx * 0.02 }}
-                />
-              </motion.button>
-            );
-          })}
-        </motion.div>
 
         {/* Main layout */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -394,10 +285,8 @@ export default function SettingsLegalPage() {
                                   Version
                                 </label>
                                 <Input
-                                  value={currentVersion}
-                                  onChange={(e) =>
-                                    handleFieldChange("version", e.target.value)
-                                  }
+                                  value={version}
+                                  onChange={(e) => setVersion(e.target.value)}
                                   placeholder="e.g. 1.0.0"
                                   disabled={isCurrentLoading}
                                   className="max-w-xs bg-white"
@@ -418,10 +307,9 @@ export default function SettingsLegalPage() {
                                   )}
                                 </div>
                                 <RichTextEditor
-                                  value={currentContent}
-                                  onChange={(html) =>
-                                    handleFieldChange("content", html)
-                                  }
+                                  key={tab}
+                                  value={content}
+                                  onChange={setContent}
                                   disabled={isCurrentLoading}
                                   placeholder="Enter document content here..."
                                   minHeight={340}
@@ -510,7 +398,7 @@ export default function SettingsLegalPage() {
                     Version
                   </div>
                   <div className="mt-1 text-xs font-semibold text-foreground">
-                    {currentApiData?.version || currentVersion || "Not specified"}
+                    {version || currentApiData?.version || "Not specified"}
                   </div>
                 </div>
 
@@ -537,14 +425,14 @@ export default function SettingsLegalPage() {
                 Preview: {currentConfig.label}
               </DialogTitle>
               <DialogDescription>
-                Version: {currentVersion || "N/A"} • Last Updated:{" "}
+                Version: {version || "N/A"} • Last Updated:{" "}
                 {formatDateTime(currentApiData?.updatedAt)}
               </DialogDescription>
             </DialogHeader>
             <div className="max-h-[60vh] overflow-y-auto rounded-xl border border-[#EEE7DF] bg-[#FAF8F5] p-4">
-              {currentContent ? (
+              {content ? (
                 <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground font-sans">
-                  {currentContent}
+                  {content}
                 </div>
               ) : (
                 <div className="text-sm italic text-muted-foreground text-center py-6">
