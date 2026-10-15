@@ -46,9 +46,14 @@ const EMAIL_SNIPPETS = [
     content: "<h2>Special Highlight Title</h2>",
   },
   {
+    label: "Link CTA",
+    icon: <Link2 className="h-3.5 w-3.5" />,
+    content: `<p style="text-align: center; margin: 24px 0;"><a href="https://worthworld.com" style="color: #2563eb; font-weight: 600; text-decoration: underline;">Shop Now</a></p>`,
+  },
+  {
     label: "Button CTA",
     icon: <Link2 className="h-3.5 w-3.5" />,
-    content: `<p style="text-align: center; margin: 24px 0;"><a href="https://worthworld.com/products" style="background-color: #895129; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Shop Now</a></p>`,
+    content: `<p style="text-align: center; margin: 24px 0;"><a href="https://worthworld.com" style="background-color: #895129; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Shop Now</a></p>`,
   },
   {
     label: "Coupon Box",
@@ -66,11 +71,9 @@ export function CampaignComposer({
   activeSubscribersCount = 0,
   onCampaignBroadcasted,
 }: CampaignComposerProps) {
-  const [subject, setSubject] = useState("Exclusive Weekend Deals 🎉");
-  const [title, setTitle] = useState("Save Up to 40% on Popular Items");
-  const [content, setContent] = useState(
-    `<p>Dear valued customer,</p>\n<p>We are excited to bring you special discounts across all categories this weekend only!</p>\n<p style="text-align: center; margin: 24px 0;">\n  <a href="https://worthworld.com/products" style="background-color: #895129; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Shop Now</a>\n</p>\n<p>Hurry before stock runs out!</p>`,
-  );
+  const [subject, setSubject] = useState("");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
 
   const [testEmail, setTestEmail] = useState("");
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
@@ -90,6 +93,14 @@ export function CampaignComposer({
       setNotification({
         type: "error",
         message: "Please provide a valid email address for testing.",
+      });
+      return;
+    }
+
+    if (!subject.trim() || !title.trim() || !content.trim()) {
+      setNotification({
+        type: "error",
+        message: "Please enter Subject, Title, and Email Content before sending test preview.",
       });
       return;
     }
@@ -277,7 +288,16 @@ export function CampaignComposer({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowTestEmailModal(true)}
+                  onClick={() => {
+                    if (!subject.trim() || !title.trim() || !content.trim()) {
+                      setNotification({
+                        type: "error",
+                        message: "Please enter Subject, Title, and Content before sending a test preview.",
+                      });
+                      return;
+                    }
+                    setShowTestEmailModal(true);
+                  }}
                   className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
                 >
                   <MailCheck className="h-4 w-4" />
@@ -287,7 +307,7 @@ export function CampaignComposer({
                 <Button
                   type="button"
                   onClick={() => setShowBroadcastConfirm(true)}
-                  disabled={!subject || !title || !content || activeSubscribersCount === 0}
+                  disabled={!subject.trim() || !title.trim() || !content.trim() || activeSubscribersCount === 0}
                   className="gap-2 bg-[#895129] text-white hover:bg-[#724220]"
                 >
                   <Send className="h-4 w-4" />
@@ -315,50 +335,75 @@ export function CampaignComposer({
               </span>
             </div>
 
-            {/* Simulated Email Client Window */}
-            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100/70 shadow-sm">
-              {/* Email Client Header Bar */}
-              <div className="border-b border-neutral-200 bg-neutral-200/50 px-4 py-3 text-xs">
-                <div className="flex items-center justify-between text-neutral-500">
-                  <span>From: Worth World &lt;newsletter@worthworld.com&gt;</span>
-                  <span className="font-mono text-[10px]">Just now</span>
-                </div>
-                <div className="mt-1 font-semibold text-neutral-800">
-                  Subject: {subject || "(No Subject)"}
-                </div>
-              </div>
+            {/* Subject Indicator */}
+            <div className="mb-3 flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-xs border border-neutral-100">
+              <span className="font-semibold text-neutral-700 shrink-0">Subject:</span>
+              <span className="truncate">
+                {subject.trim() ? (
+                  <span className="font-medium text-neutral-900">{subject}</span>
+                ) : (
+                  <span className="italic text-neutral-400">(No subject entered yet)</span>
+                )}
+              </span>
+            </div>
 
-              {/* Email Content Body */}
-              <div className="bg-white p-6">
-                <div className="mx-auto max-w-md">
-                  {/* Brand Logo Header */}
-                  <div className="mb-6 border-b pb-4 text-center">
-                    <span className="text-xl font-bold tracking-tight text-[#895129]">
-                      WORTH WORLD
+            {/* Simulated Email Canvas */}
+            <div className="rounded-2xl bg-[#f4f4f5] p-3 sm:p-5 border border-neutral-200/60">
+              {/* White Email Card matching user image */}
+              <div className="mx-auto max-w-md overflow-hidden rounded-2xl bg-white shadow-sm border border-neutral-100">
+                {/* Header: Centered Logo */}
+                <div className="pt-8 pb-5 text-center">
+                  <div className="inline-flex items-center justify-center gap-1.5">
+                    <img
+                      src="/favicon.svg"
+                      alt="worthworld"
+                      className="h-4 w-4 object-contain opacity-80"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
+                    />
+                    <span className="text-base font-semibold tracking-tight text-neutral-800 lowercase">
+                      worthworld
                     </span>
-                    <p className="text-[11px] text-neutral-400">Exclusive Store Newsletter</p>
                   </div>
+                </div>
 
-                  {/* Title */}
-                  <h2 className="mb-4 text-center text-lg font-bold text-neutral-900">
-                    {title || "(Campaign Title)"}
-                  </h2>
+                {/* Body Content */}
+                <div className="px-6 sm:px-8 pb-6">
+                  {/* Hero Title - Left-aligned */}
+                  {title.trim() ? (
+                    <h2 className="mb-4 text-left text-lg sm:text-xl font-bold tracking-tight text-neutral-900">
+                      {title}
+                    </h2>
+                  ) : (
+                    <h2 className="mb-4 text-left text-lg sm:text-xl font-bold tracking-tight text-neutral-300 italic">
+                      (Campaign Title)
+                    </h2>
+                  )}
 
-                  {/* HTML Body */}
-                  <div
-                    className="prose prose-sm max-w-none text-neutral-700"
-                    dangerouslySetInnerHTML={{ __html: content }}
-                  />
+                  {/* HTML Content Body */}
+                  {content.trim() ? (
+                    <div
+                      className="prose prose-sm max-w-none text-neutral-700 leading-relaxed [&_p]:mb-3 [&_a]:text-[#2563eb] [&_a]:underline"
+                      dangerouslySetInnerHTML={{ __html: content }}
+                    />
+                  ) : (
+                    <div className="py-10 text-center text-xs text-neutral-400 italic">
+                      Email body content will appear here as you type in the editor...
+                    </div>
+                  )}
+                </div>
 
-                  {/* Email Footer with Unsubscribe link */}
-                  <div className="mt-8 border-t pt-4 text-center text-[10px] text-neutral-400">
-                    <p>You received this email because you subscribed to Worth World updates.</p>
-                    <p className="mt-1">
-                      <span className="text-[#895129] underline">Manage Preferences</span> •{" "}
-                      <span className="text-neutral-500 underline">Unsubscribe</span>
-                    </p>
-                    <p className="mt-2 text-neutral-400">© 2026 Worth World. All rights reserved.</p>
-                  </div>
+                {/* Footer Band with Unsubscribe Notice matching screenshot */}
+                <div className="bg-[#f4f4f5] px-6 py-5 text-center text-xs text-neutral-500 leading-relaxed">
+                  <p>You received this email because you subscribed to updates from worthworld.</p>
+                  <p className="mt-1">
+                    Want out of the loop?{" "}
+                    <span className="text-[#f97316] font-medium underline cursor-pointer">
+                      Unsubscribe
+                    </span>{" "}
+                    at any time.
+                  </p>
                 </div>
               </div>
             </div>
