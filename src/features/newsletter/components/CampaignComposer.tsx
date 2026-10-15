@@ -179,21 +179,7 @@ export function CampaignComposer({
         </div>
       )}
 
-      {/* BullMQ Notice Banner */}
-      <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50/60 p-4 text-amber-900 shadow-sm">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700">
-          <Zap className="h-4.5 w-4.5" />
-        </div>
-        <div className="text-xs sm:text-sm">
-          <p className="font-semibold text-amber-950">
-            High-Performance Asynchronous Broadcast via BullMQ
-          </p>
-          <p className="mt-0.5 text-amber-800">
-            Campaigns are pushed into background worker queues and delivered asynchronously.
-            Your server stays responsive while emails are sent to all active subscribers.
-          </p>
-        </div>
-      </div>
+    
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Editor Form Column */}
