@@ -17,7 +17,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/utils/utils";
 import "./RichTextEditor.css";
 
-// ── Icons ─────────────────────────────────────────────────────────────────
 import {
   Bold,
   Italic,
@@ -42,9 +41,6 @@ import {
   Table as TableIcon,
 } from "lucide-react";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
 export type SnippetItem = {
   label: string;
   icon?: React.ReactNode;
@@ -67,9 +63,6 @@ export type RichTextEditorProps = {
   snippets?: SnippetItem[];
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Toolbar button helper
-// ─────────────────────────────────────────────────────────────────────────────
 function ToolbarBtn({
   active,
   disabled,
@@ -99,9 +92,7 @@ function ToolbarBtn({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Toolbar
-// ─────────────────────────────────────────────────────────────────────────────
+
 function Toolbar({
   editor,
   isCodeMode,
@@ -420,9 +411,6 @@ function isContentEqual(editor: Editor, incoming: string | undefined): boolean {
   return false;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main RichTextEditor component
-// ─────────────────────────────────────────────────────────────────────────────
 export function RichTextEditor({
   value = "",
   onChange,
@@ -433,7 +421,6 @@ export function RichTextEditor({
   className,
   showWordCount = true,
   allowSourceToggle = true,
-  snippets,
 }: RichTextEditorProps) {
   const [isCodeMode, setIsCodeMode] = useState(false);
   const isProgrammaticUpdateRef = useRef(false);
@@ -532,18 +519,6 @@ export function RichTextEditor({
     }
   };
 
-  const handleInsertSnippet = (snippetContent: string) => {
-    if (isCodeMode) {
-      const next = value ? `${value}\n${snippetContent}` : snippetContent;
-      onChange?.(next);
-    } else if (editor && !editor.isDestroyed) {
-      try {
-        editor.chain().focus().insertContent(snippetContent).run();
-      } catch {
-        // Safe guard
-      }
-    }
-  };
 
   const charCount =
     editor && !editor.isDestroyed && editor.storage?.characterCount
