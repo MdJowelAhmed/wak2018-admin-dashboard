@@ -2,16 +2,10 @@ import { useState } from "react";
 import {
   Send,
   Eye,
-  MailCheck,
   Zap,
   AlertCircle,
   CheckCircle2,
   Loader2,
-  AlignLeft,
-  Heading,
-  Link2,
-  Sparkles,
-  Code,
 } from "lucide-react";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { Input } from "@/components/ui/input";
@@ -25,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  useSendTestEmailMutation,
   useBroadcastCampaignMutation,
 } from "@/services/newsletterApi";
 
@@ -33,39 +26,6 @@ interface CampaignComposerProps {
   activeSubscribersCount?: number;
   onCampaignBroadcasted?: () => void;
 }
-
-const EMAIL_SNIPPETS = [
-  {
-    label: "Paragraph",
-    icon: <AlignLeft className="h-3.5 w-3.5" />,
-    content: "<p>Your paragraph text here.</p>",
-  },
-  {
-    label: "Heading",
-    icon: <Heading className="h-3.5 w-3.5" />,
-    content: "<h2>Special Highlight Title</h2>",
-  },
-  {
-    label: "Link CTA",
-    icon: <Link2 className="h-3.5 w-3.5" />,
-    content: `<p style="text-align: center; margin: 24px 0;"><a href="https://worthworld.com" style="color: #2563eb; font-weight: 600; text-decoration: underline;">Shop Now</a></p>`,
-  },
-  {
-    label: "Button CTA",
-    icon: <Link2 className="h-3.5 w-3.5" />,
-    content: `<p style="text-align: center; margin: 24px 0;"><a href="https://worthworld.com" style="background-color: #895129; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Shop Now</a></p>`,
-  },
-  {
-    label: "Coupon Box",
-    icon: <Sparkles className="h-3.5 w-3.5" />,
-    content: `<div style="background-color: #fef3c7; border: 1px dashed #f59e0b; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; color: #92400e; margin: 16px 0;">USE COUPON: SAVE40</div>`,
-  },
-  {
-    label: "Divider",
-    icon: <Code className="h-3.5 w-3.5" />,
-    content: `<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />`,
-  },
-];
 
 export function CampaignComposer({
   activeSubscribersCount = 0,
@@ -75,56 +35,15 @@ export function CampaignComposer({
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
-  const [testEmail, setTestEmail] = useState("");
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const [showBroadcastConfirm, setShowBroadcastConfirm] = useState(false);
-  const [showTestEmailModal, setShowTestEmailModal] = useState(false);
 
   const [notification, setNotification] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
 
-  const [sendTestEmail, { isLoading: isSendingTest }] = useSendTestEmailMutation();
   const [broadcastCampaign, { isLoading: isBroadcasting }] = useBroadcastCampaignMutation();
-
-  const handleSendTestEmail = async () => {
-    if (!testEmail || !testEmail.includes("@")) {
-      setNotification({
-        type: "error",
-        message: "Please provide a valid email address for testing.",
-      });
-      return;
-    }
-
-    if (!subject.trim() || !title.trim() || !content.trim()) {
-      setNotification({
-        type: "error",
-        message: "Please enter Subject, Title, and Email Content before sending test preview.",
-      });
-      return;
-    }
-
-    try {
-      const res = await sendTestEmail({
-        email: testEmail.trim(),
-        subject: subject.trim(),
-        title: title.trim(),
-        content,
-      }).unwrap();
-
-      setNotification({
-        type: "success",
-        message: res.message || `Test email sent to ${testEmail.trim()}`,
-      });
-      setShowTestEmailModal(false);
-    } catch (err: unknown) {
-      const errorMsg =
-        (err as { data?: { message?: string } })?.data?.message ||
-        "Failed to send test email.";
-      setNotification({ type: "error", message: errorMsg });
-    }
-  };
 
   const handleBroadcast = async () => {
     if (!subject.trim() || !title.trim() || !content.trim()) {
@@ -279,31 +198,11 @@ export function CampaignComposer({
                   maxHeight={500}
                   showWordCount={true}
                   allowSourceToggle={true}
-                  snippets={EMAIL_SNIPPETS}
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col gap-3 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    if (!subject.trim() || !title.trim() || !content.trim()) {
-                      setNotification({
-                        type: "error",
-                        message: "Please enter Subject, Title, and Content before sending a test preview.",
-                      });
-                      return;
-                    }
-                    setShowTestEmailModal(true);
-                  }}
-                  className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
-                >
-                  <MailCheck className="h-4 w-4" />
-                  Send Test Preview
-                </Button>
-
+              <div className="flex items-center justify-end pt-3">
                 <Button
                   type="button"
                   onClick={() => setShowBroadcastConfirm(true)}
@@ -411,69 +310,7 @@ export function CampaignComposer({
         </div>
       </div>
 
-      {/* Test Email Modal */}
-      <Dialog open={showTestEmailModal} onOpenChange={setShowTestEmailModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <MailCheck className="h-5 w-5 text-[#895129]" />
-              Send Test Email
-            </DialogTitle>
-            <DialogDescription>
-              Preview how this newsletter looks in your inbox before broadcasting to all customers.
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Recipient Email Address
-              </label>
-              <Input
-                type="email"
-                placeholder="admin@worthworld.com"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-              />
-            </div>
-            <div className="rounded-lg bg-neutral-50 p-3 text-xs text-muted-foreground">
-              <p>
-                <strong>Subject:</strong> {subject}
-              </p>
-              <p className="mt-1 truncate">
-                <strong>Title:</strong> {title}
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter className="mt-4 flex flex-row justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowTestEmailModal(false)}
-              disabled={isSendingTest}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSendTestEmail}
-              disabled={isSendingTest}
-              className="gap-2 bg-[#895129] text-white hover:bg-[#724220]"
-            >
-              {isSendingTest ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Sending Test...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  Send Test Email
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Broadcast Confirmation Modal */}
       <Dialog open={showBroadcastConfirm} onOpenChange={setShowBroadcastConfirm}>
