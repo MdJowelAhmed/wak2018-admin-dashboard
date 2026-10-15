@@ -574,27 +574,7 @@ export function RichTextEditor({
         />
       )}
 
-      {/* Snippet / Quick Blocks Ribbon */}
-      {snippets && snippets.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-[#EEE7DF] bg-[#faf8f5] px-3 py-2 text-xs">
-          <span className="mr-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-            Quick Insert:
-          </span>
-          {snippets.map((snip, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleInsertSnippet(snip.content)}
-              disabled={disabled}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3dcd3] bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-2xs transition-all hover:border-[#895129]/40 hover:bg-[#895129]/5 hover:text-[#895129] active:scale-95"
-            >
-              {snip.icon}
-              <span>{snip.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
+  
       {/* Content Area */}
       {isCodeMode ? (
         <textarea
