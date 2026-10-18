@@ -354,12 +354,7 @@ export default function OrdersPage() {
         </div>
 
         <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Order lifecycle</CardTitle>
-            <div className="text-sm text-muted-foreground">
-              {pagination?.total || 0} results
-            </div>
-          </CardHeader>
+        
           <CardContent className="space-y-3">
             <div className="grid grid-cols-1 gap-2 md:grid-cols-6">
               <Input
@@ -369,7 +364,7 @@ export default function OrdersPage() {
                   setPage(1);
                 }}
                 placeholder="Search order ID, customer email..."
-                className="md:col-span-2"
+                className="md:col-span-1"
               />
               <select
                 value={status}
@@ -415,10 +410,8 @@ export default function OrdersPage() {
                 }}
                 className="md:col-span-1"
               />
-            </div>
 
-            <div className="flex items-center justify-end">
-              <Button
+                 <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
@@ -434,6 +427,8 @@ export default function OrdersPage() {
                 Reset filters
               </Button>
             </div>
+
+         
 
             <Tabs
               value={tab}
