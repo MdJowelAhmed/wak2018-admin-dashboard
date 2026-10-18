@@ -353,7 +353,7 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        <Card>
+    
         
           <CardContent className="space-y-3">
             <div className="grid grid-cols-1 gap-2 md:grid-cols-6">
@@ -602,7 +602,7 @@ export default function OrdersPage() {
               </TabsContent>
             </Tabs>
           </CardContent>
-        </Card>
+       
       </motion.div>
 
       <Dialog

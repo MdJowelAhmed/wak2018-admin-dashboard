@@ -256,13 +256,8 @@ export default function DeliveryPage() {
           ))}
         </div>
 
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Driver assignment</CardTitle>
-            <div className="text-sm text-muted-foreground">
-              {pagination?.total || 0} results
-            </div>
-          </CardHeader>
+      
+      
           <CardContent className="space-y-3">
             <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
               <Input
@@ -498,7 +493,7 @@ export default function DeliveryPage() {
               </TabsContent>
             </Tabs>
           </CardContent>
-        </Card>
+        
       </motion.div>
 
       <Dialog
