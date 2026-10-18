@@ -193,13 +193,8 @@ export default function UsersPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
       >
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>User list</CardTitle>
-            <div className="text-sm text-muted-foreground">
-              {totalUsers} total
-            </div>
-          </CardHeader>
+        
+          
           <CardContent>
             <Table>
               <TableHeader>
@@ -414,7 +409,7 @@ export default function UsersPage() {
               </div>
             </div>
           </CardContent>
-        </Card>
+       
       </motion.div>
 
       <Dialog
