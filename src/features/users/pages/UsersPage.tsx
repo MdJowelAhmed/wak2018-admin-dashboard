@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Eye } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {  CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -113,7 +113,7 @@ export default function UsersPage() {
 
   const paged = customersData?.data || [];
   const totalPages = customersData?.pagination?.totalPage || 1;
-  const totalUsers = customersData?.pagination?.total || 0;
+
 
   const pageNumbers = useMemo(() => {
     const delta = 2;
