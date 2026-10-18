@@ -263,13 +263,8 @@ export default function PayoutsPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-10">
-          <Card className="xl:col-span-7">
-            <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>Payout approvals</CardTitle>
-              <div className="text-sm text-muted-foreground">
-                {pagination?.total || 0} results
-              </div>
-            </CardHeader>
+          <div className="xl:col-span-7">
+         
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
                 <select
@@ -547,7 +542,7 @@ export default function PayoutsPage() {
                 </TabsContent>
               </Tabs>
             </CardContent>
-          </Card>
+          </div>
 
           <Card className="xl:col-span-3">
             <CardHeader>
